@@ -90,13 +90,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 40),
 
-
-                const SizedBox(height: 20),
-
                 AppTextField(label: 'البريد الإلكتروني *',
                   hint: 'ahmad@alaman.org',
                   suffixIcon: Icons.email,
                 ),
+
+                const SizedBox(height: 20),
 
                 Obx(
                       () =>
