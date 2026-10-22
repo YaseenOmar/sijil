@@ -10,25 +10,10 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../controllers/login_controller.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginScreen extends StatelessWidget {
+  LoginScreen({super.key});
 
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
   final LoginController controller = Get.put(LoginController());
-  bool showPassword = false;
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 40),
 
-                AppTextField(label: 'البريد الإلكتروني *',
+                AppTextField(
+                  label: 'البريد الإلكتروني *',
                   hint: 'ahmad@alaman.org',
+                  controller: controller.emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  isRequired: true,
                   suffixIcon: Icons.email,
                 ),
 
@@ -116,10 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 48),
 
-                AppButton(
-                  text: 'تسجيل الدخول',
-                  icon: Icons.arrow_forward,
-                  onPressed: () {},
+                Obx(
+                      () => AppButton(
+                    text: 'تسجيل الدخول',
+                    icon: Icons.arrow_forward,
+                    isLoading: controller.isLoading.value,
+                    onPressed: controller.login,
+                  ),
                 ),
 
                 const SizedBox(height: 20),
