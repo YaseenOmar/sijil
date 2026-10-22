@@ -1,4 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
+import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
+import 'package:sijil/core/widgets/app_status_card.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../controllers/login_controller.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,14 +20,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-
+  final LoginController controller = Get.put(LoginController());
   bool showPassword = false;
-
-  // ألوان التطبيق
-  static const Color primaryColor = Color(0xFF155E59);
-  static const Color backgroundColor = Color(0xFFF8F7F4);
-  static const Color appBarColor = Color(0xFFFFFFFF);
-  static const Color textColor = Color(0xFF202D2B);
 
   @override
   void dispose() {
@@ -31,9 +35,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: backgroundColor,
+        backgroundColor: AppColors.neutralBackground,
 
-        appBar: _buildHeader(),
+        appBar: CustomAppBar(title: 'أهلاً بك في سِجل',
+        icon: Icons.verified_user_outlined,
+        ),
 
         body: SafeArea(
           child: SingleChildScrollView(
@@ -42,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
 
-               const SizedBox(height: 40),
+                const SizedBox(height: 40),
 
                 // logo
                 _buildLogo(),
@@ -55,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 42,
                     fontWeight: FontWeight.bold,
-                    color: primaryColor,
+                    color: AppColors.primary,
                   ),
                 ),
 
@@ -66,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.bold,
-                    color: textColor,
+                    color: AppColors.textPrimary,
                   ),
                 ),
 
@@ -74,113 +80,65 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const Text(
                   'مساحة عمل فريقك لتسجيل الأسر ومتابعة '
-                  'المساعدات والإحالات بكرامة وخصوصية.',
+                      'المساعدات والإحالات بكرامة وخصوصية.',
                   style: TextStyle(
                     fontSize: 15,
                     height: 1.7,
-                    color: Colors.blueGrey,
+                    color: AppColors.textSecondary,
                   ),
                 ),
 
                 const SizedBox(height: 40),
 
-                // email
-                _buildLabel('البريد الإلكتروني *'),
-
-                const SizedBox(height: 6),
-
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textDirection: TextDirection.ltr,
-                  decoration: _inputDecoration(
-                    hint: 'ahmad@alaman.org',
-                    icon: Icons.mail_outline,
-                  ),
+                AppTextField(label: 'البريد الإلكتروني *',
+                  hint: 'ahmad@alaman.org',
+                  suffixIcon: Icons.email,
                 ),
 
                 const SizedBox(height: 20),
 
-                // كلمة المرور
-                _buildLabel('كلمة المرور *'),
-
-                const SizedBox(height: 6),
-
-                TextField(
-                  controller: passwordController,
-                  obscureText: !showPassword,
-                  textDirection: TextDirection.ltr,
-                  decoration: _inputDecoration(
-                    hint: '••••••••',
-                    icon: showPassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    onIconPressed: () {
-                      setState(() {
-                        showPassword = !showPassword;
-                      });
-                    },
-                  ),
+                Obx(
+                      () =>
+                      AppTextField(
+                        label: 'كلمة المرور',
+                        isRequired: true,
+                        hint: '••••••••',
+                        controller: controller.passwordController,
+                        obscureText: !controller.isPasswordVisible.value,
+                        suffixIcon: controller.isPasswordVisible.value
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        onSuffixIconPressed: controller
+                            .togglePasswordVisibility,
+                      ),
                 ),
+
 
                 const SizedBox(height: 48),
 
-                // login button
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: (){},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'تسجيل الدخول',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(Icons.arrow_forward),
-                      ],
-                    ),
-                  ),
+                AppButton(
+                  text: 'تسجيل الدخول',
+                  icon: Icons.arrow_forward,
+                  onPressed: () {},
                 ),
 
                 const SizedBox(height: 20),
 
                 // contact with supervisor
-                OutlinedButton(
+                AppButton(
+                  text: 'تحتاج إلى مساعدة؟ تواصل مع المشرف',
+                  type: AppButtonType.secondary,
                   onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
-                    side: const BorderSide(color: Color(0xFFD5DFDC)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'تحتاج إلى مساعدة؟ تواصل مع المشرف',
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
                 ),
 
                 const SizedBox(height: 20),
 
-                // connectivity note
-                _buildInfoBox(),
+
+                const AppStatusCard(
+                  title: 'الاتصال مطلوب لأول تسجيل دخول',
+                  message: 'بعد تسجيل الدخول بنجاح، يمكنك استخدام جلستك المحفوظة دون اتصال. لا يمكن بدء جلسة جديدة دون إنترنت.',
+                  type: AppStatusType.online,
+                ),
 
                 const SizedBox(height: 20),
 
@@ -197,42 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // app bar
-  PreferredSizeWidget _buildHeader() {
-    return AppBar(
-      backgroundColor: appBarColor,
-      elevation: 0,
-      surfaceTintColor: Colors.transparent,
-      automaticallyImplyLeading: false,
-
-      title: const Text(
-        'أهلاً بك في سِجل',
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: textColor,
-        ),
-      ),
-
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(left: 20),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F3F0),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.verified_user_outlined,
-              color: primaryColor,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // logo
   Widget _buildLogo() {
     return Align(
@@ -241,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          color: primaryColor,
+          color: AppColors.primary,
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Icon(
@@ -252,92 +174,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // label
-  Widget _buildLabel(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: textColor,
-      ),
-    );
-  }
-
-  // text field
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    VoidCallback? onIconPressed,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      suffixIcon: IconButton(
-        onPressed: onIconPressed,
-        icon: Icon(icon, color: Colors.blueGrey),
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD5DFDC)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD5DFDC)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: primaryColor, width: 1.5),
-      ),
-    );
-  }
-
-  // connectivity note
-  Widget _buildInfoBox() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE4F2EF),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.wifi, color: primaryColor),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'الاتصال مطلوب لأول تسجيل دخول',
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'بعد تسجيل الدخول بنجاح، يمكنك استخدام '
-                  'جلستك المحفوظة دون اتصال. لا يمكن بدء '
-                  'جلسة جديدة دون إنترنت.',
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontSize: 16,
-                    height: 1.7,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 }
