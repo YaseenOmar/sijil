@@ -47,7 +47,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // سطر المنطقة المكلّف بها
-                _buildAreaRow(),
+                buildAreaRow(),
 
                 const SizedBox(height: 16),
 
@@ -111,7 +111,7 @@ class HomeScreen extends StatelessWidget {
                   icon: Icons.person_add_alt_1_outlined,
                   onPressed: () {
 
-                    // TODO: Get.to(() => const CreateFamilyScreen());
+                     // Will be changed later:  Get.to(() => const CreateFamilyScreen());
                     // لما اضغط على الزر، التطبيق بيفتح شاشة إنشاء أسرة
 
                   },
@@ -119,7 +119,7 @@ class HomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 12),
 
-                // الزرين الثانويين (شكليين)
+                // الزرين الثانويين (شكليين غفط)
                 Row(
                   children: [
                     Expanded(
@@ -152,7 +152,7 @@ class HomeScreen extends StatelessWidget {
           onDestinationSelected: (index) {
             // index 0 = الرئيسية (نحن فيها)
             // index 1 = الأسر
-            // TODO: if (index == 1) Get.to(() => const FamiliesListScreen());
+            //  Will be changed later : if (index == 1) Get.to(() => const FamiliesListScreen());
             //لما شاشة إنشاء الأسرة  تتجهز، بدي أشيل // من أول السطر عشان الزر ينقل لها
             // باقي التبويبات خارج نطاق السبرنت (شكلية فقط)
           },
@@ -185,7 +185,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   // سطر "منطقتك المكلّف بها" مع شارة اسم الحي
-  Widget _buildAreaRow() {
+  Widget buildAreaRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
