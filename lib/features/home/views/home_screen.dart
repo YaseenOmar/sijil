@@ -3,6 +3,10 @@ import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
+import 'package:get/get.dart';
+import 'package:sijil/features/family_creation/views/family_basic_info_screen.dart';
+import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
+
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -111,7 +115,7 @@ class HomeScreen extends StatelessWidget {
                   icon: Icons.person_add_alt_1_outlined,
                   onPressed: () {
 
-                     // Will be changed later:  Get.to(() => const CreateFamilyScreen());
+                    Get.to(() => FamilyBasicInfoScreen());
                     // لما اضغط على الزر، التطبيق بيفتح شاشة إنشاء أسرة
 
                   },
@@ -152,8 +156,9 @@ class HomeScreen extends StatelessWidget {
           onDestinationSelected: (index) {
             // index 0 = الرئيسية (نحن فيها)
             // index 1 = الأسر
-            //  Will be changed later : if (index == 1) Get.to(() => const FamiliesListScreen());
-            //لما شاشة إنشاء الأسرة  تتجهز، بدي أشيل // من أول السطر عشان الزر ينقل لها
+            if (index == 1) {
+              Get.to(() => const FamilyListScreen());
+            }
             // باقي التبويبات خارج نطاق السبرنت (شكلية فقط)
           },
           destinations: const [
