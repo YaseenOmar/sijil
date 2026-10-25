@@ -76,7 +76,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 40),
 
                 AppTextField(
-                  label: 'البريد الإلكتروني *',
+                  label: 'البريد الإلكتروني',
                   hint: 'ahmad@alaman.org',
                   controller: controller.emailController,
                   keyboardType: TextInputType.emailAddress,

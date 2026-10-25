@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sijil/features/families/controllers/family_list_controller.dart';
 import 'package:sijil/features/families/views/widgets/family_card.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_bottom_nav_bar.dart';
 import 'family_detail_screen.dart';
 
 class FamilyListScreen extends StatelessWidget {
@@ -205,6 +206,7 @@ class FamilyListScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: CustomBottomNavBar(selectedIndex: 1),
     );
   }
 }
