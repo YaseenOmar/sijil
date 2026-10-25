@@ -24,11 +24,9 @@ class FamilyCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // سهم فتح التفاصيل (إلى اليسار في الواجهة العربية)
               const Icon(Icons.chevron_left, color: Colors.grey, size: 24),
               const Spacer(),
 
-              // تفاصيل الأسرة (الاسم، الهوية، الأفراد)
               Expanded(
                 flex: 8,
                 child: Column(
@@ -56,7 +54,6 @@ class FamilyCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
 
-                    // شارة حالة المزامنة / السكن
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -65,7 +62,7 @@ class FamilyCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(
                           0xFFFFF3CD,
-                        ), // لون تحذيري خفيف لحالة الانتظار
+                        ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -84,7 +81,6 @@ class FamilyCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
 
-              // الأيقونة الدائرية للأسرة
               Container(
                 width: 44,
                 height: 44,
