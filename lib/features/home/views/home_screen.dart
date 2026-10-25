@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
@@ -7,6 +9,9 @@ import 'package:get/get.dart';
 import 'package:sijil/features/family_creation/views/family_basic_info_screen.dart';
 import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
 
+import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
+
+import '../../family_creation/views/family_basic_info_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -114,7 +119,6 @@ class HomeScreen extends StatelessWidget {
                   text: 'إضافة أسرة جديدة',
                   icon: Icons.person_add_alt_1_outlined,
                   onPressed: () {
-
                     Get.to(() => FamilyBasicInfoScreen());
                     // لما اضغط على الزر، التطبيق بيفتح شاشة إنشاء أسرة
 
@@ -149,42 +153,8 @@ class HomeScreen extends StatelessWidget {
         ),
 
         // شريط التنقل السفلي
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: 0,
-          backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.successBackground,
-          onDestinationSelected: (index) {
-            // index 0 = الرئيسية (نحن فيها)
-            // index 1 = الأسر
-            if (index == 1) {
-              Get.to(() => const FamilyListScreen());
-            }
-            // باقي التبويبات خارج نطاق السبرنت (شكلية فقط)
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: AppColors.primary),
-              label: 'الرئيسية',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.groups_outlined),
-              label: 'الأسر',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.volunteer_activism_outlined),
-              label: 'المساعدات',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.send_outlined),
-              label: 'الإحالات',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              label: 'الحساب',
-            ),
-          ],
-        ),
+        bottomNavigationBar: CustomBottomNavBar(selectedIndex: 0),
+
       ),
     );
   }

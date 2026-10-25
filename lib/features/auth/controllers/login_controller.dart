@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:sijil/features/home/views/home_screen.dart';
 import '../services/auth_service.dart';
 import 'package:sijil/features/home/views/home_screen.dart';
 
@@ -36,9 +36,8 @@ class LoginController extends GetxController {
       await _authService.login(email, password);
 
       Get.snackbar('نجاح', 'تم تسجيل الدخول بنجاح');
-      Get.offAll(() => const HomeScreen());
-
       // لاحقاً: الانتقال للشاشة المناسبة حسب دور الموظف (ميداني، مشرف، مدير)
+      Get.offAll(() => const HomeScreen());
 
     } on FirebaseAuthException catch (e) {
       String message;
