@@ -17,7 +17,6 @@ class FamilyListScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // ترويسة الشاشة العلوية
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
@@ -51,7 +50,6 @@ class FamilyListScreen extends StatelessWidget {
               ),
             ),
 
-            // شريط البحث الأساسي
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
@@ -83,7 +81,6 @@ class FamilyListScreen extends StatelessWidget {
               ),
             ),
 
-            // شريط النسخة المحلية
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.all(10),
@@ -115,7 +112,6 @@ class FamilyListScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // الحالات التفاعلية
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value) {

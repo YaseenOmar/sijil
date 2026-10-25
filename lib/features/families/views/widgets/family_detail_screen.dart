@@ -37,11 +37,10 @@ class FamilyDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // بطاقة رأس الصفحة: اسم رب الأسرة والشارات
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F3EE), // خلفية هادئة مطابقة للتصميم
+                color: const Color(0xFFE8F3EE), 
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -90,7 +89,6 @@ class FamilyDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // صندوق البيانات التفصيلية
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -111,26 +109,21 @@ class FamilyDetailScreen extends StatelessWidget {
                   ),
                   const Divider(height: 24),
 
-                  // رقم الجوال
                   _buildDetailRow('رقم الجوال', family.phoneNumber),
                   const SizedBox(height: 12),
 
-                  // رقم الهوية الوطنية
                   _buildDetailRow('رقم الهوية', family.nationalId),
                   const SizedBox(height: 12),
 
-                  // حالة السكن
                   _buildDetailRow(
                     'السكن',
                     '${family.housingStatus} · ${family.membersCount} أفراد',
                   ),
                   const SizedBox(height: 12),
 
-                  // العنوان التفصيلي
                   _buildDetailRow('العنوان التفصيلي', family.address),
                   const SizedBox(height: 16),
 
-                  // قائمة الاحتياجات
                   const Text(
                     'الاحتياجات المسجلة',
                     style: TextStyle(
