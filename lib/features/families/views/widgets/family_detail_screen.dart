@@ -33,7 +33,7 @@ class FamilyDetailScreen extends StatelessWidget {
       //     onPressed: () => Navigator.of(context).pop(),
       //   ),
       // ),
-      appBar: CustomAppBar(title: 'ملف الأسرة', leading: Icons.arrow_forward, onLeadingPressed: () => Navigator.of(context).pop(),),
+      appBar: CustomAppBar(title: 'ملف الأسرة', leading: Icons.arrow_back, onLeadingPressed: () => Navigator.of(context).pop(),),
 
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
