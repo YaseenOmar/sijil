@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:get/get.dart';
 import 'package:sijil/features/family_creation/views/family_basic_info_screen.dart';
-import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
-
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 
-import '../../family_creation/views/family_basic_info_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -24,9 +19,10 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
 
         // الشريط العلوي جاهز (العنوان + أيقونة الإشعارات)
-        appBar: const CustomAppBar(
+        appBar: CustomAppBar(
           title: 'صباح الخير، أحمد',
-          icon: Icons.notifications_outlined,
+          subtitle: 'جمعية الأمان . العامل الميداني',
+          action: Icons.notifications_outlined,
         ),
 
         body: SafeArea(
@@ -35,16 +31,6 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // اسم الجمعية والدور
-                const Text(
-                  'جمعية الأمان · العامل الميداني',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
 
                 //  "كار دون اتصال"
                 const AppStatusCard(

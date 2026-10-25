@@ -23,7 +23,7 @@ class LoginScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
 
         appBar: CustomAppBar(title: 'أهلاً بك في سِجل',
-        icon: Icons.verified_user_outlined,
+        action: Icons.verified_user_outlined,
         ),
 
         body: SafeArea(

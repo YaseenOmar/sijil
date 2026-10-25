@@ -25,7 +25,7 @@ class FamilyFlowScaffold extends StatelessWidget {
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
           backgroundColor: AppColors.neutralBackground,
-          appBar: CustomAppBar(title: title, icon: icon),
+          appBar: CustomAppBar(title: title, leading: icon),
 
           // SingleChildScrollView prevents bottom overflow when keyboard opens
           body: SafeArea(

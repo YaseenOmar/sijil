@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/features/families/controllers/family_list_controller.dart';
 import 'package:sijil/features/families/views/widgets/family_card.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -15,42 +16,43 @@ class FamilyListScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: CustomAppBar(title: 'الأسر', subtitle: 'حي النور . نطاقك المكلف به', action: Icons.tune,),
       body: SafeArea(
         child: Column(
           children: [
             // ترويسة الشاشة العلوية
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.tune, color: AppColors.textPrimary),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text(
-                        'الأسر',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'حي النور · نطاقك المكلف به',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            //   child: Row(
+            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //     children: [
+            //       IconButton(
+            //         onPressed: () {},
+            //         icon: const Icon(Icons.tune, color: AppColors.textPrimary),
+            //       ),
+            //       Column(
+            //         crossAxisAlignment: CrossAxisAlignment.end,
+            //         children: [
+            //           const Text(
+            //             'الأسر',
+            //             style: TextStyle(
+            //               fontSize: 26,
+            //               fontWeight: FontWeight.bold,
+            //               color: AppColors.textPrimary,
+            //             ),
+            //           ),
+            //           Text(
+            //             'حي النور · نطاقك المكلف به',
+            //             style: TextStyle(
+            //               fontSize: 13,
+            //               color: AppColors.textPrimary.withValues(alpha: 0.6),
+            //             ),
+            //           ),
+            //         ],
+            //       ),
+            //     ],
+            //   ),
+            // ),
 
             // شريط البحث الأساسي
             Padding(
