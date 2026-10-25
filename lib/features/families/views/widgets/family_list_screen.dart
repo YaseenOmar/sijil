@@ -20,40 +20,6 @@ class FamilyListScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // ترويسة الشاشة العلوية
-            // Padding(
-            //   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            //   child: Row(
-            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //     children: [
-            //       IconButton(
-            //         onPressed: () {},
-            //         icon: const Icon(Icons.tune, color: AppColors.textPrimary),
-            //       ),
-            //       Column(
-            //         crossAxisAlignment: CrossAxisAlignment.end,
-            //         children: [
-            //           const Text(
-            //             'الأسر',
-            //             style: TextStyle(
-            //               fontSize: 26,
-            //               fontWeight: FontWeight.bold,
-            //               color: AppColors.textPrimary,
-            //             ),
-            //           ),
-            //           Text(
-            //             'حي النور · نطاقك المكلف به',
-            //             style: TextStyle(
-            //               fontSize: 13,
-            //               color: AppColors.textPrimary.withValues(alpha: 0.6),
-            //             ),
-            //           ),
-            //         ],
-            //       ),
-            //     ],
-            //   ),
-            // ),
-
             // شريط البحث الأساسي
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -12,28 +12,10 @@ class FamilyDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      // appBar: AppBar(
-      //   title: const Text(
-      //     'ملف الأسرة',
-      //     style: TextStyle(
-      //       fontSize: 18,
-      //       fontWeight: FontWeight.bold,
-      //       color: AppColors.textPrimary,
-      //     ),
-      //   ),
-      //   centerTitle: true,
-      //   backgroundColor: AppColors.surface,
-      //   elevation: 0,
-      //   leading: IconButton(
-      //     icon: const Icon(
-      //       Icons.arrow_forward_ios,
-      //       size: 18,
-      //       color: AppColors.textPrimary,
-      //     ),
-      //     onPressed: () => Navigator.of(context).pop(),
-      //   ),
-      // ),
-      appBar: CustomAppBar(title: 'ملف الأسرة', leading: Icons.arrow_back, onLeadingPressed: () => Navigator.of(context).pop(),),
+
+      appBar: CustomAppBar(title: 'ملف الأسرة',
+        leading: Icons.arrow_back,
+        onLeadingPressed: () => Navigator.of(context).pop(),),
 
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
