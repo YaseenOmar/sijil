@@ -1,202 +1,280 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sijil/features/families/controllers/family_list_controller.dart';
-import 'package:sijil/features/families/views/widgets/family_card.dart';
-import '../../../../core/theme/app_colors.dart';
-import 'family_detail_screen.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
+import 'package:sijil/features/families/views/widgets/family_detail_screen.dart';
+
+import '../../controllers/family_list_controller.dart';
+import 'family_card.dart';
 
 class FamilyListScreen extends StatelessWidget {
   const FamilyListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final FamilyListController controller = Get.put(FamilyListController());
+    final controller = Get.put(FamilyListController());
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+
+        appBar: CustomAppBar(
+          title: "الأسر ",
+          subtitle: "حي النور . نطاقك المكلف به",
+          action: Icons.tune,
+        ),
+
+        body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.tune, color: AppColors.textPrimary),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text(
-                        'الأسر',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'حي النور · نطاقك المكلف به',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TextField(
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'الاسم أو رقم الهوية أو الجوال',
-                    hintStyle: TextStyle(color: AppColors.textSecondary),
-                    prefixIcon: Icon(Icons.search, color: AppColors.primary),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  onChanged: (value) {
-                    controller.filterFamilies(value);
-                  },
-                ),
-              ),
-            ),
-
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'نسخة محلية · قد توجد سجلات أحدث لم تصل لهذا الجهاز بعد',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textPrimary.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.inventory_2_outlined,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
             Expanded(
-              child: Obx(() {
-                if (controller.isLoading.value) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'البحث في السجلات المحلية',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3748),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-                if (controller.errorMessage.isNotEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    TextField(
+                      onChanged: controller.filterFamilies,
+                      decoration: InputDecoration(
+                        hintText: 'الاسم أو رقم الهوية أو الجوال',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'يعمل البحث دون اتصال ضمن بيانات منطقتك المحفوظة.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    OutlinedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(
+                        Icons.filter_list,
+                        color: Color(0xFF1B6B65),
+                      ),
+                      label: const Text(
+                        'البحث والتصفية',
+                        style: TextStyle(
+                          color: Color(0xFF1B6B65),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE9ECEF).withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
                         children: [
                           const Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.red,
+                            Icons.storage_outlined,
+                            color: Colors.black54,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            controller.errorMessage.value,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () => controller.fetchFamilies(),
-                            child: const Text('إعادة المحاولة'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                if (controller.families.isEmpty) {
-                  final isSearching = controller.searchQuery.value.isNotEmpty;
-
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            isSearching
-                                ? Icons.search_off
-                                : Icons.people_outline,
-                            size: 64,
-                            color: Colors.grey.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            isSearching
-                                ? 'لا توجد نتائج تطابق "${controller.searchQuery.value}"'
-                                : 'لا توجد أسر مسجلة حالياً',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'نسخة محلية - آخر تحديث ٢٠ أكتوبر، ٤:٣٠ م',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2D3748),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'قد توجد سجلات أحدث لم تصل إلى هذا الجهاز بعد.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
+                    const SizedBox(height: 20),
 
-                return RefreshIndicator(
-                  onRefresh: () => controller.fetchFamilies(),
-                  child: ListView.builder(
-                    itemCount: controller.families.length,
-                    itemBuilder: (context, index) {
-                      final family = controller.families[index];
-                      return FamilyCard(
-                        family: family,
-                        onTap: () {
-                          Get.to(() => FamilyDetailScreen(family: family));
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'أسر حي النور',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A202C),
+                          ),
+                        ),
+                        Obx(
+                          () => Text(
+                            '${controller.families.length} أسرة',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1B6B65),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    Obx(() {
+                      if (controller.isLoading.value) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (controller.errorMessage.value.isNotEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              controller.errorMessage.value,
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (controller.families.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: Text('لا توجد أسر مطابقة للبحث'),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: controller.families.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final family = controller.families[index];
+                          return FamilyCard(
+                            family: family,
+                            onTap: () {
+                              Get.to(() => FamilyDetailScreen(family: family));
+                            },
+                          );
                         },
                       );
-                    },
+                    }),
+                  ],
+                ),
+              ),
+            ),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    offset: const Offset(0, -3),
+                    blurRadius: 6,
                   ),
-                );
-              }),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Get.toNamed('/create-family');
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        'إضافة أسرة',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF135354),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'تظهر لك الأسر المسندة إليك فقط. يراجع المشرف السجلات المجمعة قبل اعتمادها.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

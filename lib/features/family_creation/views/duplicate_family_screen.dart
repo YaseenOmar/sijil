@@ -20,7 +20,7 @@ class DuplicateFamilyScreen extends StatelessWidget {
 
     return FamilyFlowScaffold(
       title: 'التحقق من الهوية',
-      icon: Icons.badge_outlined,
+      icon: Icons.arrow_back,
       children: [
         const StepProgressHeader(
           currentStep: 1,

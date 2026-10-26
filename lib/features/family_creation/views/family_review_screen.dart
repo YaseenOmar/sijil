@@ -21,7 +21,7 @@ class FamilyReviewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return FamilyFlowScaffold(
       title: 'مراجعة الأسرة',
-      icon: Icons.fact_check_outlined,
+      icon: Icons.arrow_back,
       children: [
         const StepProgressHeader(
           currentStep: 3,

@@ -25,7 +25,7 @@ class FamilyHousingNeedsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return FamilyFlowScaffold(
       title: 'أسرة جديدة',
-      icon: Icons.family_restroom_outlined,
+      icon: Icons.arrow_back,
       children: [
         const StepProgressHeader(
           currentStep: 2,

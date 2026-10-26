@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/family_model.dart';
 
@@ -11,27 +12,13 @@ class FamilyDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'ملف الأسرة',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_forward_ios,
-            size: 18,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+
+      appBar: CustomAppBar(
+        title: 'ملف الأسرة',
+        leading: Icons.arrow_back,
+        onLeadingPressed: () => Navigator.of(context).pop(),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -40,7 +27,7 @@ class FamilyDetailScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F3EE), 
+                color: const Color(0xFFE8F3EE),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
