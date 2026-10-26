@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/features/families/controllers/family_list_controller.dart';
 import 'package:sijil/features/families/views/widgets/family_card.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_bottom_nav_bar.dart';
 import 'family_detail_screen.dart';
 
 class FamilyListScreen extends StatelessWidget {
@@ -14,6 +16,7 @@ class FamilyListScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: CustomAppBar(title: 'الأسر', subtitle: 'حي النور . نطاقك المكلف به', action: Icons.tune,),
       body: SafeArea(
         child: Column(
           children: [
@@ -201,6 +204,7 @@ class FamilyListScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: CustomBottomNavBar(selectedIndex: 1),
     );
   }
 }
