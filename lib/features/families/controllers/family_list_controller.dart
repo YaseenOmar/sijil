@@ -31,7 +31,6 @@ class FamilyListController extends GetxController {
       _allFamilies.clear();
       _allFamilies.addAll(result);
 
-      // إعادة تطبيق البحث إن كان هناك نص مكتوب مسبقاً
       filterFamilies(searchQuery.value);
     } catch (e) {
       errorMessage.value = 'حدث خطأ أثناء تحميل البيانات: ${e.toString()}';
@@ -40,7 +39,6 @@ class FamilyListController extends GetxController {
     }
   }
 
-  // البحث الأساسي: الاسم أو رقم الهوية أو رقم الهاتف
   void filterFamilies(String query) {
     searchQuery.value = query.trim();
 

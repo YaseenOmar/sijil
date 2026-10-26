@@ -20,7 +20,39 @@ class FamilyListScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // شريط البحث الأساسي
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.tune, color: AppColors.textPrimary),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'الأسر',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'حي النور · نطاقك المكلف به',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
@@ -52,7 +84,6 @@ class FamilyListScreen extends StatelessWidget {
               ),
             ),
 
-            // شريط النسخة المحلية
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.all(10),
@@ -84,7 +115,6 @@ class FamilyListScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // الحالات التفاعلية
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value) {
