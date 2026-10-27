@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sijil/core/constants/demo_context.dart';
 import 'package:sijil/features/families/data/datasources/family_remote_datasource.dart';
@@ -49,6 +48,28 @@ class FamilyCreationService {
       throw FamilyCreationException(_firebaseMessage(e.code));
     } catch (_) {
       throw const FamilyCreationException('تعذر التحقق من رقم الهوية');
+    }
+  }
+
+  // Instant check while typing: looks only at records cached on this device.
+  // Works offline; the real duplicate check still runs on the server when saving.
+  Future<FamilyModel?> findLocalFamilyByNationalId(String nationalId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('organizations')
+          .doc(DemoContext.organizationId)
+          .collection('families')
+          .where('nationalId', isEqualTo: nationalId.trim())
+          .limit(1)
+          .get(const GetOptions(source: Source.cache));
+
+      if (snapshot.docs.isEmpty) return null;
+
+      final doc = snapshot.docs.first;
+      return FamilyModel.fromMap({...doc.data(), 'id': doc.id});
+    } catch (_) {
+      // Nothing cached (or cache not available): treat as no local match
+      return null;
     }
   }
 
