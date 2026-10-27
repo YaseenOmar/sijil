@@ -26,11 +26,46 @@ class FamilyListScreen extends StatelessWidget {
 
         body: Column(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.tune, color: AppColors.textPrimary),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'الأسر',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'حي النور · نطاقك المكلف به',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,36 +80,18 @@ class FamilyListScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
 
-                    TextField(
-                      onChanged: controller.filterFamilies,
-                      decoration: InputDecoration(
-                        hintText: 'الاسم أو رقم الهوية أو الجوال',
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 14,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'يعمل البحث دون اتصال ضمن بيانات منطقتك المحفوظة.',
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'نسخة محلية · قد توجد سجلات أحدث لم تصل لهذا الجهاز بعد',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
@@ -82,30 +99,13 @@ class FamilyListScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
 
-                    OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(
-                        Icons.filter_list,
-                        color: Color(0xFF1B6B65),
-                      ),
-                      label: const Text(
-                        'البحث والتصفية',
-                        style: TextStyle(
-                          color: Color(0xFF1B6B65),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
+            const SizedBox(height: 8),
+
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                     Container(
                       padding: const EdgeInsets.all(12),

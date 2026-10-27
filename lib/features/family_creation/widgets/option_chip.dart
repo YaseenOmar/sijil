@@ -70,7 +70,7 @@ class OptionChip extends StatelessWidget {
   }
 }
 
-// Two chips per row
+// Two chips per row (a last single chip takes the full row)
 class OptionChipWrap extends StatelessWidget {
   final List<String> options;
   final List<String> selected;
@@ -87,22 +87,27 @@ class OptionChipWrap extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double itemWidth = ((constraints.maxWidth - 8) / 2)
-            .floorToDouble();
+        final double fullWidth = constraints.maxWidth;
+        final double itemWidth = ((fullWidth - 8) / 2).floorToDouble();
+        final bool hasSingleLast = options.length.isOdd;
 
         return Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: options.map((option) {
+          children: List.generate(options.length, (index) {
+            final String option = options[index];
+            final bool isSingleLast =
+                hasSingleLast && index == options.length - 1;
+
             return SizedBox(
-              width: itemWidth,
+              width: isSingleLast ? fullWidth : itemWidth,
               child: OptionChip(
                 label: option,
                 isSelected: selected.contains(option),
                 onTap: () => onTap(option),
               ),
             );
-          }).toList(),
+          }),
         );
       },
     );
