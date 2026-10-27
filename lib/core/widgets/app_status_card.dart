@@ -15,12 +15,14 @@ class AppStatusCard extends StatelessWidget {
   final String title;
   final String message;
   final AppStatusType type;
+  final IconData? icon;//هادا
 
   const AppStatusCard({
     super.key,
     required this.title,
     required this.message,
     this.type = AppStatusType.info,
+    this.icon,//وهادا
   });
 
   @override
@@ -39,7 +41,7 @@ class AppStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            _getIcon(),
+            icon ?? _getIcon(),
             color: color,
             size: 22,
           ),

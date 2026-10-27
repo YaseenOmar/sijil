@@ -21,7 +21,7 @@ class FamilyBasicInfoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return FamilyFlowScaffold(
       title: 'أسرة جديدة',
-      icon: Icons.family_restroom_outlined,
+      icon: Icons.arrow_back,
       children: [
         const StepProgressHeader(
           currentStep: 1,
@@ -51,8 +51,35 @@ class FamilyBasicInfoScreen extends StatelessWidget {
                 controller: controller.nationalIdController,
                 keyboardType: TextInputType.number,
                 isRequired: true,
+                onChanged: controller.onNationalIdChanged,
                 validator: FamilyValidators.nationalId,
               ),
+
+              const SizedBox(height: 16),
+
+              // Duplicate check result under the national ID field
+              Obx(() {
+                switch (controller.localIdStatus.value) {
+                  case LocalIdStatus.noMatch:
+                    return const AppStatusCard(
+                      title: 'لا يوجد تطابق على هذا الجهاز',
+                      message: 'التحقق دون اتصال يشمل السجلات المحلية فقط. إعادة فحص الهوية عند المراجعة قبل إنشاء سجل جديد.',
+                      type: AppStatusType.success,
+                    );
+                  case LocalIdStatus.match:
+                    return const AppStatusCard(
+                      title: 'يوجد تطابق على هذا الجهاز',
+                      message: 'رقم الهوية هذا مسجل محلياً. سيتم عرض السجل الموجود عند المتابعة.',
+                      type: AppStatusType.error,
+                    );
+                  case LocalIdStatus.idle:
+                    return const AppStatusCard(
+                      title: 'التحقق من الهوية',
+                      message: 'سيتم التحقق من رقم الهوية قبل المتابعة للتأكد من عدم تسجيل الأسرة مسبقاً. الاتصال بالإنترنت مطلوب.',
+                      type: AppStatusType.info,
+                    );
+                }
+              }),
 
               const SizedBox(height: 16),
 
@@ -77,14 +104,6 @@ class FamilyBasicInfoScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        const AppStatusCard(
-          title: 'التحقق من الهوية',
-          message: 'سيتم التحقق من رقم الهوية قبل المتابعة للتأكد من عدم تسجيل الأسرة مسبقاً. الاتصال بالإنترنت مطلوب.',
-          type: AppStatusType.info,
         ),
 
         const SizedBox(height: 24),

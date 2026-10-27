@@ -42,76 +42,88 @@ class IdCardImageField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(imagePath!),
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  cacheWidth: 160,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 56,
-                    height: 56,
-                    color: AppColors.neutralBackground,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: AppColors.textSecondary,
-                    ),
+          // Small preview on the end side of the card
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                File(imagePath!),
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                cacheWidth: 160,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 48,
+                  height: 48,
+                  color: AppColors.neutralBackground,
+                  child: const Icon(
+                    Icons.task_outlined,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(width: 16),
+          const SizedBox(height: 8),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'صورة الهوية مرفقة',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'الحجم: ${toArabicDigits(sizeKb)} كيلوبايت · محفوظة محلياً',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+          const Text(
+            'صورة الهوية مرفقة',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            'صورة واحدة · ${toArabicDigits(sizeKb)} كيلوبايت · محفوظة محلياً',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Image is local only until upload is added
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.warningBackground,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'بانتظار المزامنة',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning,
                 ),
               ),
-            ],
+            ),
           ),
 
           const SizedBox(height: 16),
 
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  text: 'استبدال الصورة',
-                  type: AppButtonType.secondary,
-                  onPressed: onPick,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: AppButton(
-                  text: 'إزالة المرفق',
-                  type: AppButtonType.secondary,
-                  onPressed: onRemove,
-                ),
-              ),
-            ],
+          AppButton(
+            text: 'استبدال الصورة',
+            icon: Icons.photo_camera_outlined,
+            type: AppButtonType.secondary,
+            onPressed: onPick,
+          ),
+
+          const SizedBox(height: 8),
+
+          AppButton(
+            text: 'إزالة المرفق',
+            type: AppButtonType.secondary,
+            onPressed: onRemove,
           ),
         ],
       ),

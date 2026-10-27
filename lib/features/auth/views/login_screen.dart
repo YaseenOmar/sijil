@@ -23,7 +23,7 @@ class LoginScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
 
         appBar: CustomAppBar(title: 'أهلاً بك في سِجل',
-        icon: Icons.verified_user_outlined,
+        action: Icons.verified_user_outlined,
         ),
 
         body: SafeArea(
@@ -76,7 +76,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 40),
 
                 AppTextField(
-                  label: 'البريد الإلكتروني *',
+                  label: 'البريد الإلكتروني',
                   hint: 'ahmad@alaman.org',
                   controller: controller.emailController,
                   keyboardType: TextInputType.emailAddress,
