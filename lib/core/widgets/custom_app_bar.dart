@@ -1,135 +1,166 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
+class CustomAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  final IconData icon;
-  final IconData? leading;
-  final IconData? action;
-  final String? subtitle;
-  final VoidCallback? onIconPressed;
-  final VoidCallback? onLeadingPressed;
-  final VoidCallback? onActionPressed;
-  final bool iconAtStart;
 
-  const CustomAppBar({
-    super.key,
-    required this.title,
-    this.icon = Icons.verified_user_outlined,
-    this.leading,
-    this.action,
-    this.subtitle,
-    this.onIconPressed,
-    this.onLeadingPressed,
-    this.onActionPressed,
-    this.iconAtStart = false,
-  });
+final String title;
+final IconData icon;
+final String? subtitle;
 
-  @override
-  Widget build(BuildContext context) {
-    final compact = iconAtStart || subtitle != null;
-    final leadingIcon =
-        leading ?? (iconAtStart && action == null ? icon : null);
-    final actionIcon =
-        action ?? (!iconAtStart && leading == null ? icon : null);
-    final leadingCallback =
-        onLeadingPressed ??
-        (leading != null || (iconAtStart && action == null)
-            ? onIconPressed
-            : null);
-    final actionCallback =
-        onActionPressed ??
-        (action != null || (!iconAtStart && leading == null)
-            ? onIconPressed
-            : null);
+// Optional icons
+final IconData? leading;
+final IconData? action;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Container(
-        color: AppColors.background,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: SafeArea(
-          bottom: false,
-          child: Row(
-            children: [
-              if (leadingIcon != null) ...[
-                _buildIcon(leadingIcon, leadingCallback, compact, true),
-                const SizedBox(width: 16),
-              ],
-              Expanded(child: _buildTitle(compact)),
-              if (actionIcon != null) ...[
-                const SizedBox(width: 16),
-                _buildIcon(actionIcon, actionCallback, compact, false),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+// Click actions
+final VoidCallback? onLeadingPressed;
+final VoidCallback? onActionPressed;
 
-  Widget _buildTitle(bool compact) {
-    final titleText = Text(
-      title,
-      textAlign: TextAlign.right,
-      style: TextStyle(
-        fontSize: compact ? 24 : 32,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textPrimary,
-      ),
-    );
+const CustomAppBar({
+CustomAppBar({
+super.key,
+required this.title,
+this.icon = Icons.verified_user_outlined,
+this.subtitle,
+this.leading,
+this.action,
+this.onLeadingPressed,
+this.onActionPressed,
+});
 
-    if (subtitle == null) return titleText;
+@override
+Widget build(BuildContext context) {
+return Container(
+color: AppColors.background,
+padding: const EdgeInsets.symmetric(
+horizontal: 20,
+vertical: 16,
+),
+child: SafeArea(
+bottom: false,
+child: Row(
+mainAxisAlignment: MainAxisAlignment.spaceBetween,
+children: [
+// title
+Expanded(
+child: Text(
+title,
+textAlign: TextAlign.right,
+style: const TextStyle(
+fontSize: 32,
+fontWeight: FontWeight.bold,
+color: AppColors.textPrimary,
+),
+),
+),
+return AppBar(
+backgroundColor: AppColors.background,
+elevation: 0,
+scrolledUnderElevation: 0,
+automaticallyImplyLeading: false,
+toolbarHeight: 80,
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          subtitle!,
-          textAlign: TextAlign.right,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        titleText,
-      ],
-    );
-  }
+const SizedBox(width: 16),
+// Right icon in RTL
+leadingWidth: leading != null ? 72 : null,
+leading: leading != null
+? Padding(
+padding: const EdgeInsetsDirectional.only(
+start: 20,
+),
+child: _buildIcon(
+leading!,
+onLeadingPressed,
+),
+)
+: null,
 
-  Widget _buildIcon(
-    IconData icon,
-    VoidCallback? onPressed,
-    bool compact,
-    bool isLeading,
-  ) {
-    return Semantics(
-      button: onPressed != null,
-      label: isLeading && onPressed != null ? 'رجوع' : null,
-      child: Material(
-        color: AppColors.neutralBackground,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(20),
-          child: SizedBox(
-            width: 48,
-            height: 48,
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: compact ? 24 : 34,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+// icon
+Container(
+width: 48,
+height: 48,
+decoration: BoxDecoration(
+color: AppColors.neutralBackground,
+borderRadius: BorderRadius.circular(20),
+),
+child: Icon(
+icon,
+color: AppColors.primary,
+size: 34,
+// Title and subtitle
+title: Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+mainAxisSize: MainAxisSize.min,
+children: [
+Text(
+title,
+style: const TextStyle(
+fontSize: 24,
+fontWeight: FontWeight.bold,
+color: AppColors.textPrimary,
+),
+),
 
-  @override
-  Size get preferredSize => const Size.fromHeight(120);
+if (subtitle != null) ...[
+const SizedBox(height: 5),
+Text(
+subtitle!,
+style: const TextStyle(
+fontSize: 13,
+color: AppColors.textSecondary,
+),
+),
+],
+],
+),
+
+// Left icon in RTL
+actions: action != null
+? [
+Padding(
+padding: const EdgeInsetsDirectional.only(
+end: 20,
+),
+child: _buildIcon(
+action!,
+onActionPressed,
+),
+),
+]
+: null,
+);
+}
+
+
+Widget _buildIcon(
+IconData icon,
+VoidCallback? onPressed,
+) {
+return Center(
+child: Container(
+width: 48,
+height: 48,
+decoration: BoxDecoration(
+color: AppColors.neutralBackground,
+borderRadius: BorderRadius.circular(14),
+),
+child: onPressed != null
+? IconButton(
+icon: Icon(icon),
+iconSize: 24,
+color: AppColors.primary,
+onPressed: onPressed,
+)
+: Icon(
+icon,
+size: 24,
+color: AppColors.primary,
+),
+),
+);
+}
+
+@override
+Size get preferredSize => const Size.fromHeight(120);
+Size get preferredSize => const Size.fromHeight(80);
 }
