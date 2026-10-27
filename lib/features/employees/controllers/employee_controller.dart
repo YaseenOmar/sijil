@@ -11,13 +11,9 @@ class EmployeeController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   final AppLinks _appLinks = AppLinks();
-
   StreamSubscription<Uri>? _linkSubscription;
-
   final RxBool isLoading = false.obs;
-
   // Stores the received sign-in link
   final RxnString pendingInvitationLink = RxnString();
 
