@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:sijil/features/assistance/views/assistance_dashboard_screen.dart';
+import 'package:sijil/features/organization/views/team_and_services_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/views/login_screen.dart';
 import 'features/employees/controllers/employee_controller.dart';
@@ -28,7 +30,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
       theme: AppTheme.lightTheme,
-      home: LoginScreen(),
+      home: AssistanceDashboardScreen(),
     );
   }
 }
