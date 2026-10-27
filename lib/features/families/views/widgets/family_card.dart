@@ -65,21 +65,30 @@ class FamilyCard extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        family.housingStatus.isNotEmpty
-                            ? family.housingStatus
-                            : 'تمت المزامنة',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF856404),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3CD),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          family.housingStatus.isNotEmpty
+                              ? family.housingStatus
+                              : 'تمت المزامنة',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF856404),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
 
               Container(
                 width: 44,
