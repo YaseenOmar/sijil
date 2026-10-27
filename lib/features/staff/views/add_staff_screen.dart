@@ -31,9 +31,10 @@ class AddStaffScreen extends StatelessWidget {
           backgroundColor: AppColors.neutralBackground,
           appBar: CustomAppBar(
             title: 'إضافة موظف',
-            subtitle: '٠٤ · سجل',
+            subtitle: 'سجل',
             icon: Icons.arrow_back,
             onIconPressed: () => Get.back(),
+            iconOnRight: true,
           ),
 
           // SingleChildScrollView prevents bottom overflow when keyboard opens

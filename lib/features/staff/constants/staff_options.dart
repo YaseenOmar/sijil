@@ -16,7 +16,6 @@ class StaffOptions {
   static const String currentManagerLabel = 'خالد عمر · مدير جمعية الأمان';
 
   // Roles (single select) and what each role can do
-  // Temporary texts: confirm them with the SRS
   static const Map<String, RolePermissions> roles = {
     'عامل ميداني': RolePermissions(
       scope: 'حساب {name} يرى أسر {area} فقط، ويعدّل الأسر التي أُنشئت من نفس الحساب. ويمكن من خلاله تسجيل المساعدات وإنشاء الإحالات ضمن المنطقة.',
