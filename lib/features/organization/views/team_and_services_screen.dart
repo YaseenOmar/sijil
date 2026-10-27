@@ -220,11 +220,6 @@ class TeamAndServicesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              /* 
-              // ==========================================
-              // قسم تهيئة الخدمات المتاحة وزر الإضافة (معلق حسب التكليف)
-              // ==========================================
-              
               const Text(
                 'تهيئة الخدمات المتاحة',
                 style: TextStyle(
@@ -251,35 +246,65 @@ class TeamAndServicesScreen extends StatelessWidget {
                       children: [
                         const Text(
                           'مساعدات غذائية',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE8F3EE),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             'الخدمة متاحة للإحالات',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF135354), fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF135354),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text('فترة منع تكرار الطرد الغذائي *', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      'فترة منع تكرار الطرد الغذائي *',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('٣٠ يوماً', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const Text(
+                      '٣٠ يوماً',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    const Text('الكمية الافتراضية', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      'الكمية الافتراضية',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('طرد واحد', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'طرد واحد',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     OutlinedButton(
                       onPressed: () {},
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 40),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       child: const Text('حفظ إعدادات الخدمة'),
                     ),
@@ -288,7 +313,6 @@ class TeamAndServicesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
 
-              // بطاقة مستلزمات نظافة
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -304,17 +328,27 @@ class TeamAndServicesScreen extends StatelessWidget {
                       children: [
                         const Text(
                           'مستلزمات نظافة',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE8F3EE),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             'متاحة',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF135354), fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF135354),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -322,16 +356,23 @@ class TeamAndServicesScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'مسؤول الخدمة: نورا إبراهيم • آخر تحديث: ٢٠ أكتوبر ٢٠٢٦',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: () {},
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 40),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: const Text('تعديل الخدمة أو إيقاف استقبال الإحالات'),
+                      child: const Text(
+                        'تعديل الخدمة أو إيقاف استقبال الإحالات',
+                      ),
                     ),
                   ],
                 ),
@@ -344,12 +385,17 @@ class TeamAndServicesScreen extends StatelessWidget {
                 icon: const Icon(Icons.add, color: Color(0xFF135354)),
                 label: const Text(
                   'إضافة خدمة للجهة',
-                  style: TextStyle(color: Color(0xFF135354), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Color(0xFF135354),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
                   side: const BorderSide(color: Color(0xFF135354)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -358,7 +404,6 @@ class TeamAndServicesScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
-              */
             ],
           ),
         ),
