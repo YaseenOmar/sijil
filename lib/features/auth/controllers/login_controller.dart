@@ -1,9 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sijil/features/home/views/home_screen.dart';
+import 'package:sijil/features/home/employee/views/home_screen.dart';
 import '../services/auth_service.dart';
-import 'package:sijil/features/home/views/home_screen.dart';
 
 class LoginController extends GetxController {
   final AuthService _authService = AuthService();

@@ -32,9 +32,8 @@ class AddStaffScreen extends StatelessWidget {
           appBar: CustomAppBar(
             title: 'إضافة موظف',
             subtitle: 'سجل',
-            icon: Icons.arrow_back,
-            onIconPressed: () => Get.back(),
-            iconOnRight: true,
+            leading: Icons.arrow_back,
+            onLeadingPressed: () => Get.back(),
           ),
 
           // SingleChildScrollView prevents bottom overflow when keyboard opens

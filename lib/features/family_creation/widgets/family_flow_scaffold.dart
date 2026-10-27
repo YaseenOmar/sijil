@@ -28,9 +28,8 @@ class FamilyFlowScaffold extends StatelessWidget {
           backgroundColor: AppColors.neutralBackground,
           appBar: CustomAppBar(
             title: title,
-            icon: icon,
-            iconAtStart: true,
-            onIconPressed: () => Get.back(),
+            leading: icon,
+            onLeadingPressed: () => Get.back(),
           ),
 
           // SingleChildScrollView prevents bottom overflow when keyboard opens
