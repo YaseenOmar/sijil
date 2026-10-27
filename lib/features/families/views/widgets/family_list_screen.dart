@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/features/families/controllers/family_list_controller.dart';
 import 'package:sijil/features/families/views/widgets/family_card.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_bottom_nav_bar.dart';
 import 'family_detail_screen.dart';
 
 class FamilyListScreen extends StatelessWidget {
@@ -14,10 +16,10 @@ class FamilyListScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: CustomAppBar(title: 'الأسر', subtitle: 'حي النور . نطاقك المكلف به', action: Icons.tune,),
       body: SafeArea(
         child: Column(
           children: [
-            // ترويسة الشاشة العلوية
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
@@ -51,7 +53,6 @@ class FamilyListScreen extends StatelessWidget {
               ),
             ),
 
-            // شريط البحث الأساسي
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
@@ -83,7 +84,6 @@ class FamilyListScreen extends StatelessWidget {
               ),
             ),
 
-            // شريط النسخة المحلية
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.all(10),
@@ -115,7 +115,6 @@ class FamilyListScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // الحالات التفاعلية
             Expanded(
               child: Obx(() {
                 if (controller.isLoading.value) {
@@ -205,6 +204,7 @@ class FamilyListScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: CustomBottomNavBar(selectedIndex: 1),
     );
   }
 }

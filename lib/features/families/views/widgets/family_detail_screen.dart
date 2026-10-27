@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/family_model.dart';
 
@@ -11,37 +12,20 @@ class FamilyDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'ملف الأسرة',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_forward_ios,
-            size: 18,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+
+      appBar: CustomAppBar(title: 'ملف الأسرة',
+        leading: Icons.arrow_back,
+        onLeadingPressed: () => Navigator.of(context).pop(),),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // بطاقة رأس الصفحة: اسم رب الأسرة والشارات
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F3EE), // خلفية هادئة مطابقة للتصميم
+                color: const Color(0xFFE8F3EE), 
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -90,7 +74,6 @@ class FamilyDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // صندوق البيانات التفصيلية
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -111,26 +94,21 @@ class FamilyDetailScreen extends StatelessWidget {
                   ),
                   const Divider(height: 24),
 
-                  // رقم الجوال
                   _buildDetailRow('رقم الجوال', family.phoneNumber),
                   const SizedBox(height: 12),
 
-                  // رقم الهوية الوطنية
                   _buildDetailRow('رقم الهوية', family.nationalId),
                   const SizedBox(height: 12),
 
-                  // حالة السكن
                   _buildDetailRow(
                     'السكن',
                     '${family.housingStatus} · ${family.membersCount} أفراد',
                   ),
                   const SizedBox(height: 12),
 
-                  // العنوان التفصيلي
                   _buildDetailRow('العنوان التفصيلي', family.address),
                   const SizedBox(height: 16),
 
-                  // قائمة الاحتياجات
                   const Text(
                     'الاحتياجات المسجلة',
                     style: TextStyle(

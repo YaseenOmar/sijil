@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/features/family_creation/utils/text_utils.dart';
 
-// "الخطوة ٢ من ٣" + progress bars + section title
+// Section title + "الخطوة ٢ من ٣" pill + progress bars
 class StepProgressHeader extends StatelessWidget {
   final int currentStep;
   final int totalSteps;
@@ -20,13 +20,38 @@ class StepProgressHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'الخطوة ${toArabicDigits(currentStep)} من ${toArabicDigits(totalSteps)}',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
+        // Title on the start side, step pill on the end side
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                sectionTitle,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.successBackground,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'الخطوة ${toArabicDigits(currentStep)} من ${toArabicDigits(totalSteps)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.success,
+                ),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(height: 8),
@@ -50,17 +75,6 @@ class StepProgressHeader extends StatelessWidget {
               ),
             );
           }),
-        ),
-
-        const SizedBox(height: 16),
-
-        Text(
-          sectionTitle,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
         ),
       ],
     );
