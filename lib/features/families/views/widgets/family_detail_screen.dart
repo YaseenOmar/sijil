@@ -44,7 +44,6 @@ class FamilyDetailScreen extends StatelessWidget {
                       ),
                       textAlign: TextAlign.right,
                     ),
-                  ),
                   const Divider(height: 24),
 
                   _buildDetailRow('رقم الجوال', family.phoneNumber),
@@ -108,7 +107,7 @@ class FamilyDetailScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
+import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import 'package:sijil/features/family_creation/utils/text_utils.dart';
 import 'package:sijil/features/family_creation/widgets/option_chip.dart';
 import 'package:sijil/features/referrals/constants/referral_demo_data.dart';
@@ -11,7 +12,6 @@ import 'package:sijil/features/referrals/controllers/referrals_controller.dart';
 import 'package:sijil/features/referrals/widgets/referral_card.dart';
 import 'package:sijil/features/referrals/widgets/referral_flow_scaffold.dart';
 import 'package:sijil/features/referrals/widgets/referral_tabs.dart';
-import 'package:sijil/features/referrals/widgets/referrals_bottom_nav.dart';
 
 // Referrals list: outgoing / incoming tabs, status filter and the latest referrals
 // Open it with: Get.to(() => ReferralsScreen());
@@ -33,9 +33,8 @@ class ReferralsScreen extends StatelessWidget {
       onIconPressed: controller.resetFilter,
 
       // TODO: connect the destinations with the app navigation
-      bottomNavigationBar: ReferralsBottomNav(
+      bottomNavigationBar: CustomBottomNavBar(
         selectedIndex: 3,
-        onSelected: (index) {},
       ),
       children: [
         Obx(

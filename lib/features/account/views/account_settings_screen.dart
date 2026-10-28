@@ -35,8 +35,52 @@ class AccountSettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
 
-                ProfileCard(name: 'أحمد محمد أحمد', organization: 'جمعية الامان',
-                role: 'عامل ميداني', area: 'حي النور', email: 'ahmed@gmail.com',),
+
+                Obx(() {
+                  // Loading State
+                  if (controller.isLoadingProfile.value) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Error State
+                  if (controller.profileError.value.isNotEmpty) {
+                    return Column(
+                      children: [
+                        AppStatusCard(
+                          title: 'تعذر تحميل بيانات الحساب',
+                          message: controller.profileError.value,
+                          type: AppStatusType.error,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        AppButton(
+                          text: 'إعادة المحاولة',
+                          type: AppButtonType.secondary,
+                          icon: Icons.refresh,
+                          onPressed: controller.loadUserProfile,
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Profile Data
+                  return ProfileCard(
+                    name: controller.userName.value,
+                    organization: controller.organizationName.value,
+                    role: controller.userRole.value,
+                    area: controller.userArea.value,
+                    email: controller.userEmail.value,
+                  );
+                }),
+
 
                 const SizedBox(height: 28),
 
@@ -143,15 +187,15 @@ class AccountSettingsScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 20),
-
-                AppButton(
-                  text: 'طلب تعديل بيانات الحساب من المشرف',
-                  type: AppButtonType.secondary,
-                  onPressed: () {
-                    // TODO: Open permissions help screen
-                  },
-                ),
+                // const SizedBox(height: 20),
+                //
+                // AppButton(
+                //   text: 'طلب تعديل بيانات الحساب من المشرف',
+                //   type: AppButtonType.secondary,
+                //   onPressed: () {
+                //     // TODO: Open permissions help screen
+                //   },
+                // ),
 
                 const SizedBox(height: 28),
 
