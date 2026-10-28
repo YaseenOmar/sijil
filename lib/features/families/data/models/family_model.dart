@@ -30,11 +30,12 @@ class FamilyModel {
     required this.organizationId,
   });
 
+  // Convert FamilyModel to Firestore Map
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'headName': headName,
-      'nationalId': nationalId,
+      'nationalId': nationalId.trim(),
       'phoneNumber': phoneNumber,
       'membersCount': membersCount,
       'address': address,
@@ -47,11 +48,12 @@ class FamilyModel {
     };
   }
 
+  // Convert Firestore Map to FamilyModel
   factory FamilyModel.fromMap(Map<String, dynamic> map) {
     return FamilyModel(
       id: map['id'] as String,
       headName: map['headName'] as String,
-      nationalId: map['nationalId'] as String,
+      nationalId: (map['nationalId'] as String).trim(),
       phoneNumber: map['phoneNumber'] as String,
       membersCount: (map['membersCount'] as num).toInt(),
       address: map['address'] as String,

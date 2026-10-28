@@ -31,7 +31,7 @@ class AddStaffScreen extends StatelessWidget {
           backgroundColor: AppColors.neutralBackground,
           appBar: CustomAppBar(
             title: 'إضافة موظف',
-            subtitle: 'سجل',
+            subtitle: 'خالد عمر . مدير جمعية أمان',
             leading: Icons.arrow_back,
             onLeadingPressed: () => Get.back(),
           ),
@@ -44,17 +44,6 @@ class AddStaffScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Signed in manager
-                  const Text(
-                    StaffOptions.currentManagerLabel,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
                   const AppStatusCard(
                     title: 'إضافة حساب عمل لجهتك فقط',
                     message: 'تحقق من اسم الموظف وبريد العمل ونطاق الوصول. لا تُنشأ صلاحيات لحسابك من هذه الصفحة، وتُوثَّق التغييرات باسم المدير.',
@@ -137,22 +126,14 @@ class AddStaffScreen extends StatelessWidget {
 
                         const SizedBox(height: 16),
 
-                        // Requested account status (optional)
-                        Obx(
-                          () => FormDropdownField(
-                            label: 'حالة الحساب المطلوبة',
-                            value: controller.accountStatus.value,
-                            items: StaffOptions.accountStatuses
-                                .map(
-                                  (status) => DropdownMenuItem(
-                                    value: status,
-                                    child: Text(status),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: controller.selectAccountStatus,
-                          ),
+                        // account status
+                        const AppStatusCard(
+                          title: 'حالة الحساب',
+                          message:
+                          'سيبقى الحساب معلّقًا حتى يقبل الموظف الدعوة ويتحقق من بريده الإلكتروني.',
+                          type: AppStatusType.online,
                         ),
+
                       ],
                     ),
                   ),
@@ -284,11 +265,17 @@ class AddStaffScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                AppButton(
-                  text: 'تأكيد الإضافة',
-                  icon: Icons.check,
-                  onPressed: controller.confirmAdd,
+                Obx(
+                      () => AppButton(
+                    text: 'تأكيد الإضافة',
+                    icon: Icons.check,
+                    isLoading: controller.isLoading.value,
+                    onPressed: controller.isLoading.value
+                        ? null
+                        : controller.confirmAdd,
+                  ),
                 ),
+
 
                 const SizedBox(height: 16),
 

@@ -1,7 +1,7 @@
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/features/auth/controllers/user_session_controller.dart';
 
 class AccountSettingsController extends GetxController {
   final RxBool autoSync = true.obs;
@@ -12,6 +12,10 @@ class AccountSettingsController extends GetxController {
 
   // Logout loading state
   final RxBool isLoggingOut = false.obs;
+
+  // Session controller
+  final UserSessionController _sessionController =
+  Get.find<UserSessionController>();
 
   void toggleAutoSync() {
     autoSync.value = !autoSync.value;
@@ -56,26 +60,15 @@ class AccountSettingsController extends GetxController {
     );
   }
 
-  // Firebase logout
+  // Logout through UserSessionController
   Future<void> logout() async {
     if (isLoggingOut.value) return;
 
     try {
       isLoggingOut.value = true;
 
-      await FirebaseAuth.instance.signOut();
+      await _sessionController.logout();
 
-      // TODO: Navigate to your actual login route.
-      // Example (after registering /login in GetMaterialApp):
-      //
-      // Get.offAllNamed('/login');
-
-    } on FirebaseAuthException catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'تعذر تسجيل الخروج: ${e.message ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
     } catch (e) {
       Get.snackbar(
         'خطأ',

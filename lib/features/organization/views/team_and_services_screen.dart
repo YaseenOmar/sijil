@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../staff/views/add_staff_screen.dart';
 import 'edit_staff_screen.dart';
 
 class TeamAndServicesScreen extends StatelessWidget {
@@ -108,7 +109,7 @@ class TeamAndServicesScreen extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () {
                       // الانتقال إلى شاشة إضافة موظف
-                      Get.toNamed('/add-staff');
+                      Get.to(() => AddStaffScreen());;
                     },
                     icon: const Icon(
                       Icons.add,
