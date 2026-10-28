@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
       theme: AppTheme.lightTheme,
-      home: AssistanceDashboardScreen(),
+      home: LoginScreen(),
     );
   }
 }

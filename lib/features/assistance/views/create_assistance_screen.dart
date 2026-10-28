@@ -191,8 +191,8 @@ class _CreateAssistanceScreenState extends State<CreateAssistanceScreen> {
         appBar: CustomAppBar(
           title: 'تسجيل مساعدة',
           subtitle: 'توثيق التسليم',
-          leading: Icons.arrow_back,
-          onLeadingPressed: () => Get.back(),
+          action: Icons.arrow_forward,
+          onActionPressed: () => Get.back(),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

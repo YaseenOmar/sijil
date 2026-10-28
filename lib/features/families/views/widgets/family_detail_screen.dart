@@ -24,61 +24,6 @@ class FamilyDetailScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // كرت اسم الأسرة العلوي
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F3EE),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      family.headName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${family.membersCount} أفراد · حي النور',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3CD),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        family.housingStatus.isNotEmpty
-                            ? family.housingStatus
-                            : 'تمت المزامنة',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF856404),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
               // كرت بيانات الأسرة
               Container(
                 padding: const EdgeInsets.all(16),

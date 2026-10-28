@@ -1,9 +1,7 @@
-
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-
   final String title;
   final String? subtitle;
 
@@ -15,7 +13,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onLeadingPressed;
   final VoidCallback? onActionPressed;
 
-    CustomAppBar({
+  CustomAppBar({
     super.key,
     required this.title,
     this.subtitle,
@@ -38,14 +36,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: leading != null ? 72 : null,
       leading: leading != null
           ? Padding(
-        padding: const EdgeInsetsDirectional.only(
-          start: 20,
-        ),
-        child: _buildIcon(
-          leading!,
-          onLeadingPressed,
-        ),
-      )
+              padding: const EdgeInsetsDirectional.only(start: 20),
+              child: _buildIcon(leading!, onLeadingPressed),
+            )
           : null,
 
       // Title and subtitle
@@ -78,25 +71,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       // Left icon in RTL
       actions: action != null
           ? [
-        Padding(
-          padding: const EdgeInsetsDirectional.only(
-            end: 20,
-          ),
-          child: _buildIcon(
-            action!,
-            onActionPressed,
-          ),
-        ),
-      ]
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 20),
+                child: _buildIcon(action!, onActionPressed),
+              ),
+            ]
           : null,
     );
   }
 
-
-  Widget _buildIcon(
-      IconData icon,
-      VoidCallback? onPressed,
-      ) {
+  Widget _buildIcon(IconData icon, VoidCallback? onPressed) {
     return Center(
       child: Container(
         width: 48,
@@ -107,16 +91,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         child: onPressed != null
             ? IconButton(
-          icon: Icon(icon),
-          iconSize: 24,
-          color: AppColors.primary,
-          onPressed: onPressed,
-        )
-            : Icon(
-          icon,
-          size: 24,
-          color: AppColors.primary,
-        ),
+                icon: Icon(icon),
+                iconSize: 24,
+                color: AppColors.primary,
+                onPressed: onPressed,
+              )
+            : Icon(icon, size: 24, color: AppColors.primary),
       ),
     );
   }
