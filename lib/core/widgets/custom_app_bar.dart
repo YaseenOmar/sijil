@@ -5,7 +5,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final String? subtitle;
 
-  // Optional icons
+  // Optional images
   final IconData? leading;
   final IconData? action;
 

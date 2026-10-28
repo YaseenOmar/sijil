@@ -1,35 +1,54 @@
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_instance/src/extension_instance.dart';
-import 'package:get/get_navigation/src/root/get_material_app.dart';
-import 'package:sijil/features/assistance/views/assistance_dashboard_screen.dart';
-import 'core/theme/app_theme.dart';
-import 'features/auth/views/login_screen.dart';
-import 'features/employees/controllers/employee_controller.dart';
+import 'package:get/get.dart';
+
 import 'firebase_options.dart';
+import 'core/theme/app_theme.dart';
+
+import 'features/auth/controllers/user_session_controller.dart';
+import 'features/auth/controllers/session_activity_monitor.dart';
+import 'features/auth/views/splash_screen.dart';
+
+import 'features/employees/controllers/employee_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Register controllers
   Get.put(EmployeeController(), permanent: true);
+  Get.put(UserSessionController(), permanent: true);
+
+  // Start application
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
+
       locale: const Locale('ar'),
+
       theme: AppTheme.lightTheme,
-      home: AssistanceDashboardScreen(),
+
+      // First screen
+      home: const SplashScreen(),
+
+      // Monitor user activity
+      builder: (context, child) {
+        return SessionActivityMonitor(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

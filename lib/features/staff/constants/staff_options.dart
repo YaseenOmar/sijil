@@ -32,7 +32,8 @@ class StaffOptions {
     ),
   };
 
-  static List<String> get roleNames => roles.keys.toList();
+  //static List<String> get roleNames => roles.keys.toList();
+  static List<String> get roleNames => ['عامل ميداني'];
 
   // Requested account status (single select)
   static const List<String> accountStatuses = [
