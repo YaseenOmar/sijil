@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/core/widgets/custom_app_bar.dart';
+import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import '../controllers/assistance_controller.dart';
 import 'create_assistance_screen.dart';
 import 'assistance_history_screen.dart';
@@ -15,57 +17,15 @@ class AssistanceDashboardScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: const Color(0xFFF9FAFB),
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          toolbarHeight: 70,
-          titleSpacing: 16,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                '١٥ · متابعة التوزيع',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF135354),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'المساعدات',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A202C),
-                ),
-              ),
-              Text(
-                'جمعية الأمان · حي النور',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.tune,
-                    color: Color(0xFF135354),
-                    size: 20,
-                  ),
-                  onPressed: () {},
-                ),
-              ),
-            ),
-          ],
+        appBar: CustomAppBar(
+          title: 'المساعدات',
+          subtitle: 'جمعية الأمان · حي النور',
+          action: Icons.tune,
+          onActionPressed: () {
+            // فتح الفلتر أو الإعدادات
+          },
         ),
+
         body: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
@@ -359,6 +319,8 @@ class AssistanceDashboardScreen extends StatelessWidget {
             ],
           ),
         ),
+
+        bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 2),
       ),
     );
   }
