@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +11,9 @@ import 'package:sijil/features/family_creation/views/duplicate_family_screen.dar
 import 'package:sijil/features/family_creation/views/family_housing_needs_screen.dart';
 import 'package:sijil/features/family_creation/views/family_review_screen.dart';
 import 'package:uuid/uuid.dart';
+
+// Result of the on-device duplicate check shown under the national ID field
+enum LocalIdStatus { idle, noMatch, match }
 
 // One controller for the 3 steps: basic data -> housing & needs -> review
 class FamilyCreationController extends GetxController {
@@ -54,6 +56,9 @@ class FamilyCreationController extends GetxController {
   // Family found by national ID (duplicate screen)
   final existingFamily = Rxn<FamilyModel>();
 
+  // Instant on-device check while typing the national ID
+  final localIdStatus = LocalIdStatus.idle.obs;
+
   // Same ID is reused when the user retries saving the same family
   String? _draftId;
 
@@ -72,6 +77,25 @@ class FamilyCreationController extends GetxController {
       .toList();
 
   // ---------- Step 1 ----------
+  // Runs while typing: only checks records cached on this device (works offline)
+  Future<void> onNationalIdChanged(String _) async {
+    final id = nationalId;
+
+    if (!RegExp(r'^\d{9}$').hasMatch(id)) {
+      localIdStatus.value = LocalIdStatus.idle;
+      return;
+    }
+
+    final found = await _service.findLocalFamilyByNationalId(id);
+
+    // Ignore an old result if the user kept typing
+    if (id != nationalId) return;
+
+    localIdStatus.value = found == null
+        ? LocalIdStatus.noMatch
+        : LocalIdStatus.match;
+  }
+
   Future<void> submitBasicInfo() async {
     if (isCheckingId.value) return;
 
@@ -248,6 +272,7 @@ class FamilyCreationController extends GetxController {
     removeIdCardImage();
 
     existingFamily.value = null;
+    localIdStatus.value = LocalIdStatus.idle;
     saveError.value = null;
     isConfirmed.value = false;
     isSaved.value = false;

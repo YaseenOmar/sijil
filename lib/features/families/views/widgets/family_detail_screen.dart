@@ -44,70 +44,68 @@ class FamilyDetailScreen extends StatelessWidget {
                       ),
                       textAlign: TextAlign.right,
                     ),
-                    const Divider(height: 24),
+                  ),
+                  const Divider(height: 24),
 
-                    _buildDetailRow('رقم الجوال', family.phoneNumber),
-                    const SizedBox(height: 12),
+                  _buildDetailRow('رقم الجوال', family.phoneNumber),
+                  const SizedBox(height: 12),
 
-                    _buildDetailRow('رقم الهوية', family.nationalId),
-                    const SizedBox(height: 12),
+                  _buildDetailRow('رقم الهوية', family.nationalId),
+                  const SizedBox(height: 12),
 
-                    _buildDetailRow(
-                      'السكن',
-                      '${family.housingStatus} · ${family.membersCount} أفراد',
+                  _buildDetailRow(
+                    'السكن',
+                    '${family.housingStatus} · ${family.membersCount} أفراد',
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildDetailRow('العنوان التفصيلي', family.address),
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'الاحتياجات المسجلة',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
                     ),
-                    const SizedBox(height: 12),
-
-                    _buildDetailRow('العنوان التفصيلي', family.address),
-                    const SizedBox(height: 16),
-
+                  ),
+                  const SizedBox(height: 8),
+                  if (family.needs.isEmpty)
                     const Text(
-                      'الاحتياجات المسجلة',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.right,
+                      'لا توجد احتياجات مسجلة',
+                      style: TextStyle(fontSize: 13),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
+                      children: family.needs.map((need) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.neutralBackground,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            need,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                    const SizedBox(height: 8),
-                    if (family.needs.isEmpty)
-                      const Text(
-                        'لا توجد احتياجات مسجلة',
-                        style: TextStyle(fontSize: 13),
-                        textAlign: TextAlign.right,
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.start,
-                        children: family.needs.map((need) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.neutralBackground,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              need,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -115,12 +113,11 @@ class FamilyDetailScreen extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           label,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          textAlign: TextAlign.right,
         ),
         const SizedBox(height: 2),
         Text(
@@ -130,7 +127,6 @@ class FamilyDetailScreen extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
-          textAlign: TextAlign.right,
         ),
       ],
     );

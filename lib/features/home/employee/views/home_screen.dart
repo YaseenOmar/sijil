@@ -5,10 +5,11 @@ import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
 import 'package:sijil/features/family_creation/views/family_basic_info_screen.dart';
-import 'package:sijil/features/home/views/widgets/home_area_row.dart';
-import 'package:sijil/features/home/views/widgets/home_bottom_nav_bar.dart';
-import 'package:sijil/features/home/views/widgets/home_quick_actions.dart';
-import 'package:sijil/features/home/views/widgets/home_stats_grid.dart';
+import 'package:sijil/features/home/widgets/home_area_row.dart';
+import 'package:sijil/features/home/widgets/home_bottom_nav_bar.dart';
+import 'package:sijil/features/home/widgets/home_quick_actions.dart';
+import 'package:sijil/features/home/widgets/home_stats_grid.dart';
+import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 
 /// Main screen shown after a successful login.
 ///
@@ -59,7 +60,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-        bottomNavigationBar: HomeBottomNavBar(onTabSelected: _onTabSelected),
+        bottomNavigationBar: CustomBottomNavBar(selectedIndex: 0)
       ),
     );
   }

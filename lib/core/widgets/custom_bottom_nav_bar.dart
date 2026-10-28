@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:sijil/features/referrals/views/referrals_screen.dart';
+import '../../features/account/views/account_settings_screen.dart';
+import '../../features/assistance/views/assistance_dashboard_screen.dart';
 import '../../features/families/views/widgets/family_list_screen.dart';
-import '../../features/home/views/home_screen.dart';
+import '../../features/home/employee/views/home_screen.dart';
 import '../theme/app_colors.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
@@ -31,15 +33,15 @@ class CustomBottomNavBar extends StatelessWidget {
             break;
 
           case 2:
-            // Assistance screen (later)
+            Get.off(() => const AssistanceDashboardScreen());
             break;
 
           case 3:
-            // Referrals screen (later)
+            Get.off(() => ReferralsScreen());
             break;
 
           case 4:
-            // Account screen (later)
+            Get.off(() => AccountSettingsScreen());
             break;
         }
       },

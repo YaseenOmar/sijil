@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 
-// Label + custom input (chips, image...) + inline error message
+// Label (+ inline helper) + custom input (chips, image...) + inline error message
 class FormFieldGroup extends StatelessWidget {
   final String label;
   final bool isRequired;
@@ -23,25 +23,30 @@ class FormFieldGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          isRequired ? '$label *' : label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        // Ex: "الاحتياجات * · يمكن اختيار أكثر من حاجة"
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: isRequired ? '$label *' : label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (helperText != null)
+                TextSpan(
+                  text: ' · $helperText',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+            ],
           ),
         ),
-
-        if (helperText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            helperText!,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
 
         const SizedBox(height: 8),
 

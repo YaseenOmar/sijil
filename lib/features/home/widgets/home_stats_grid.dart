@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sijil/features/home/views/widgets/home_stat_card.dart';
+import 'package:sijil/features/home/widgets/home_stat_card.dart';
+
 
 /// Four statistic cards arranged as two rows of two.
 class HomeStatsGrid extends StatelessWidget {
