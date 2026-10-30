@@ -6,11 +6,19 @@ import 'package:sijil/features/referrals/views/create_referral_screen.dart';
 import 'package:sijil/features/referrals/views/incoming_referral_review_screen.dart';
 import 'package:sijil/features/referrals/views/referral_details_screen.dart';
 
-// Controller of the referrals list (outgoing / incoming tabs + status filter)
+// Controller of the referrals list (outgoing / incoming tabs + status filters)
 class ReferralsController extends GetxController {
   // 0 = outgoing, 1 = incoming
   final tabIndex = 0.obs;
+
+  // Outgoing filter
   final selectedFilter = ReferralOptions.filterAll.obs;
+
+  // Incoming filter (supervisor view)
+  final selectedIncomingFilter = ReferralOptions.filterWaitingDecision.obs;
+
+  // Only the latest incoming referral is shown until the supervisor asks for the rest
+  final showAllIncoming = false.obs;
 
   final outgoing = <ReferralModel>[].obs;
   final incoming = <ReferralModel>[].obs;
@@ -18,6 +26,11 @@ class ReferralsController extends GetxController {
   // ---------- UI states ----------
   final isLoading = false.obs;
   final loadError = RxnString();
+
+  // ---------- Connection ----------
+  // TODO: connect them with the connectivity and sync services
+  final isOnline = true.obs;
+  final lastSyncAt = ReferralDemoData.lastSyncAt.obs;
 
   @override
   void onInit() {
@@ -27,9 +40,36 @@ class ReferralsController extends GetxController {
 
   // Referrals of the selected tab after applying the status filter
   List<ReferralModel> get visibleReferrals {
-    final source = tabIndex.value == 0 ? outgoing : incoming;
-    return source.where(_matchesFilter).toList();
+    if (tabIndex.value == 1) return filteredIncoming;
+
+    return outgoing.where(_matchesFilter).toList();
   }
+
+  // Incoming referrals after the status filter, latest received first
+  List<ReferralModel> get filteredIncoming {
+    final List<ReferralModel> items = incoming
+        .where(_matchesIncomingFilter)
+        .toList();
+
+    items.sort((a, b) => _receivedTime(b).compareTo(_receivedTime(a)));
+
+    return items;
+  }
+
+  // Incoming referrals shown on the screen
+  List<ReferralModel> get displayedIncoming {
+    final List<ReferralModel> items = filteredIncoming;
+
+    if (showAllIncoming.value || items.length <= 1) return items;
+
+    return items.take(1).toList();
+  }
+
+  int get hiddenIncomingCount =>
+      filteredIncoming.length - displayedIncoming.length;
+
+  DateTime _receivedTime(ReferralModel referral) =>
+      referral.receivedAt ?? referral.createdAt;
 
   bool _matchesFilter(ReferralModel referral) {
     switch (selectedFilter.value) {
@@ -41,6 +81,21 @@ class ReferralsController extends GetxController {
         return referral.status == ReferralStatus.pendingSend;
       case ReferralOptions.filterCompleted:
         return referral.status == ReferralStatus.completed;
+      default:
+        return true;
+    }
+  }
+
+  bool _matchesIncomingFilter(ReferralModel referral) {
+    switch (selectedIncomingFilter.value) {
+      case ReferralOptions.filterWaitingDecision:
+        return referral.status == ReferralStatus.received;
+      case ReferralOptions.filterUnderReview:
+        return referral.status == ReferralStatus.underReview;
+      case ReferralOptions.filterServiceDone:
+        return referral.status == ReferralStatus.completed;
+      case ReferralOptions.filterRejected:
+        return referral.status == ReferralStatus.rejected;
       default:
         return true;
     }
@@ -67,6 +122,13 @@ class ReferralsController extends GetxController {
 
   void resetFilter() => selectedFilter.value = ReferralOptions.filterAll;
 
+  void selectIncomingFilter(String filter) {
+    selectedIncomingFilter.value = filter;
+    showAllIncoming.value = false;
+  }
+
+  void showRestOfIncoming() => showAllIncoming.value = true;
+
   // Called after saving a new referral
   void addReferral(ReferralModel referral) {
     outgoing.insert(0, referral);
@@ -91,4 +153,7 @@ class ReferralsController extends GetxController {
   }
 
   void openCreateReferral() => Get.to(() => CreateReferralScreen());
+
+  // TODO: open the supervisor dashboard when it is ready
+  void backToSupervisorDashboard() => Get.back();
 }

@@ -5,6 +5,7 @@ import 'package:sijil/core/widgets/custom_app_bar.dart';
 
 // Shared page shell for the referral screens:
 // RTL + CustomAppBar + scrollable body + tap outside to close keyboard
+// Leading icon = right side (back by default), action icon = left side (optional)
 class ReferralFlowScaffold extends StatelessWidget {
   final String title;
 
@@ -18,6 +19,11 @@ class ReferralFlowScaffold extends StatelessWidget {
   final IconData icon;
   final bool iconAtStart;
   final VoidCallback? onIconPressed;
+
+  // Optional icon on the left side of the app bar
+  final IconData? actionIcon;
+  final VoidCallback? onActionPressed;
+
   final Widget? bottomNavigationBar;
 
   const ReferralFlowScaffold({
@@ -29,7 +35,9 @@ class ReferralFlowScaffold extends StatelessWidget {
     this.icon = Icons.arrow_back,
     this.iconAtStart = true,
     this.onIconPressed,
-    this.bottomNavigationBar,
+    this.actionIcon,
+    this.onActionPressed,
+    this.bottomNavigationBar, void Function()? onLeadingPressed, IconData? leadingIcon,
   });
 
   @override
@@ -46,6 +54,8 @@ class ReferralFlowScaffold extends StatelessWidget {
             subtitle: breadcrumb,
             leading: icon,
             onLeadingPressed: onIconPressed ?? () => Get.back(),
+            action: actionIcon,
+            onActionPressed: onActionPressed,
           ),
           bottomNavigationBar: bottomNavigationBar,
 
