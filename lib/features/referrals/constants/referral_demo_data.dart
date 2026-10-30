@@ -25,6 +25,12 @@ class ReferralDemoData {
   static const String supervisorLabel = 'نورا إبراهيم · مشرفة جمعية الأمان';
   static const String sender = 'أحمد سالم · جمعية الأمان';
 
+  // Line under the title of the supervisor referrals page
+  static const String supervisorHeaderLabel = 'نورا إبراهيم · جمعية الأمان';
+
+  // TODO: replace it with the real last sync time of the sync service
+  static final DateTime lastSyncAt = DateTime(2026, 10, 21, 8, 55);
+
   static const List<DemoFamily> families = [
     DemoFamily(
       name: 'سامي يوسف الخطيب',
@@ -123,6 +129,66 @@ class ReferralDemoData {
       status: ReferralStatus.received,
       createdAt: DateTime(2026, 10, 21, 8, 40),
       receivedAt: DateTime(2026, 10, 21, 8, 40),
+    ),
+    ReferralModel(
+      id: 'ref_102',
+      number: '0102',
+      familyName: 'خالد محمد الشريف',
+      membersCount: 6,
+      fromOrg: 'جمعية العون',
+      toOrg: currentOrg,
+      service: 'رعاية صحية',
+      reason: 'تحتاج الأسرة إلى متابعة صحية لأحد أفرادها وترتيب موعد تقييم.',
+      area: 'حي النور',
+      contactPhone: '0597001122',
+      status: ReferralStatus.received,
+      createdAt: DateTime(2026, 10, 20, 14, 15),
+      receivedAt: DateTime(2026, 10, 20, 14, 15),
+    ),
+    ReferralModel(
+      id: 'ref_103',
+      number: '0103',
+      familyName: 'ليلى أحمد حمدان',
+      membersCount: 3,
+      fromOrg: 'مركز الشفاء',
+      toOrg: currentOrg,
+      service: 'مساعدات غذائية',
+      reason: 'تحتاج الأسرة إلى سلة غذائية عاجلة بعد فقدان المعيل.',
+      area: 'حي السلام',
+      contactPhone: '0568223344',
+      status: ReferralStatus.received,
+      createdAt: DateTime(2026, 10, 19, 11, 0),
+      receivedAt: DateTime(2026, 10, 19, 11, 0),
+    ),
+    ReferralModel(
+      id: 'ref_104',
+      number: '0104',
+      familyName: 'يوسف علي النجار',
+      membersCount: 7,
+      fromOrg: 'مؤسسة السند',
+      toOrg: currentOrg,
+      service: 'دعم سكني',
+      reason: 'تحتاج الأسرة إلى دعم في ترميم المسكن قبل بدء الشتاء.',
+      area: 'حي النور',
+      contactPhone: '0599334455',
+      status: ReferralStatus.received,
+      createdAt: DateTime(2026, 10, 18, 9, 30),
+      receivedAt: DateTime(2026, 10, 18, 9, 30),
+    ),
+    ReferralModel(
+      id: 'ref_105',
+      number: '0105',
+      familyName: 'رنا سمير الحلو',
+      membersCount: 5,
+      fromOrg: 'جمعية العون',
+      toOrg: currentOrg,
+      service: 'تأهيل حركي',
+      reason: 'تحتاج الأسرة إلى تقييم حركي لأحد الأطفال وتحديد برنامج متابعة.',
+      area: 'حي السلام',
+      contactPhone: '0597445566',
+      status: ReferralStatus.received,
+      createdAt: DateTime(2026, 10, 17, 13, 45),
+      receivedAt: DateTime(2026, 10, 17, 13, 45),
     ),
   ];
 }
