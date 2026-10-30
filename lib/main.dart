@@ -4,6 +4,7 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:sijil/features/assistance/views/assistance_dashboard_screen.dart';
+import 'features/data_conflicts/views/data_conflict_screen.dart';
 import 'features/home/employee/views/home_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/views/login_screen.dart';
@@ -12,9 +13,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   Get.put(EmployeeController(), permanent: true);
   runApp(const MyApp());
