@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EmployeeModel {
-  final String id;
+  final String? uid;
   final String fullName;
   final String email;
   final String role;
@@ -12,7 +12,7 @@ class EmployeeModel {
   final DateTime createdAt;
 
   EmployeeModel({
-    required this.id,
+    this.uid,
     required this.fullName,
     required this.email,
     required this.role,
@@ -25,6 +25,7 @@ class EmployeeModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'uid' : uid,
       'fullName': fullName,
       'email': email,
       'role': role,
@@ -38,7 +39,7 @@ class EmployeeModel {
 
   factory EmployeeModel.fromMap(Map<String, dynamic> map) {
     return EmployeeModel(
-      id: map['id'] ?? '',
+      uid: map['uid'] as String?,
       fullName: map['fullName'] ?? '',
       email: map['email'] ?? '',
       role: map['role'] ?? '',

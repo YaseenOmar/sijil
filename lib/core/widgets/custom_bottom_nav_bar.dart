@@ -1,31 +1,45 @@
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import 'package:sijil/core/theme/app_colors.dart';
+
+import 'package:sijil/features/home/employee/views/home_screen.dart';
+import 'package:sijil/features/home/manager/views/manager_home_screen.dart';
+import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
+import 'package:sijil/features/assistance/views/assistance_dashboard_screen.dart';
 import 'package:sijil/features/referrals/views/referrals_screen.dart';
-import '../../features/account/views/account_settings_screen.dart';
-import '../../features/assistance/views/assistance_dashboard_screen.dart';
-import '../../features/families/views/widgets/family_list_screen.dart';
-import '../../features/home/employee/views/home_screen.dart';
-import '../theme/app_colors.dart';
+import 'package:sijil/features/account/views/account_settings_screen.dart';
+
+import '../../features/auth/controllers/user_session_controller.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
 
-  const CustomBottomNavBar({super.key, required this.selectedIndex});
+  const CustomBottomNavBar({
+    super.key,
+    required this.selectedIndex,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final sessionController = Get.find<UserSessionController>();
+
     return NavigationBar(
       selectedIndex: selectedIndex,
       backgroundColor: AppColors.surface,
       indicatorColor: AppColors.successBackground,
 
       onDestinationSelected: (index) {
-        // Don't navigate if already on selected page
         if (index == selectedIndex) return;
 
         switch (index) {
           case 0:
-            Get.off(() => const HomeScreen());
+            if (sessionController.isSupervisor) {
+              Get.off(() => const ManagerHomeScreen());
+            } else if (sessionController.isFieldWorker) {
+              Get.off(() => const HomeScreen());
+            }
             break;
 
           case 1:
@@ -49,7 +63,10 @@ class CustomBottomNavBar extends StatelessWidget {
       destinations: const [
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home, color: AppColors.primary),
+          selectedIcon: Icon(
+            Icons.home,
+            color: AppColors.primary,
+          ),
           label: 'الرئيسية',
         ),
         NavigationDestination(

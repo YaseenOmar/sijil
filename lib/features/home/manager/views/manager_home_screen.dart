@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import 'package:sijil/features/home/widgets/home_stat_card.dart';
+import '../../../assistance/views/create_assistance_screen.dart';
+import '../../../organization/views/team_and_services_screen.dart';
+import '../../../staff/views/add_staff_screen.dart';
 
 /// Home screen for the organization manager (لوحة مدير الجهة).
 ///
@@ -135,24 +140,30 @@ class ManagerHomeScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     AppButton(
                       text: 'إدارة الفريق والخدمات',
-                      onPressed: () {},
+                      onPressed: () {
+                        Get.to(() => TeamAndServicesScreen());
+                      },
                     ),
                     const SizedBox(height: 12),
                     AppButton(
                       text: 'إضافة موظف',
                       type: AppButtonType.secondary,
-                      onPressed: () {},
+                      onPressed: () {
+                        Get.to(() => AddStaffScreen());
+                      },
                     ),
-                 /*   const SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     AppButton(
                       text: 'إضافة خدمة للجهة',
                       type: AppButtonType.secondary,
-                      onPressed: () {},
-                    ),*/
+                      onPressed: () {
+                        Get.to(() => CreateAssistanceScreen());
+                      },
+                    ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                // const SizedBox(height: 24),
 
                 // ---------- Reports and export ----------
                 /*const _SectionTitle('التقارير والتصدير'),
@@ -180,23 +191,23 @@ class ManagerHomeScreen extends StatelessWidget {
                 const SizedBox(height: 24),*/
 
                 // ---------- Sync info ----------
-                const AppStatusCard(
-                  title: 'تحديث البيانات ضمن الجهة فقط',
-                  message:
-                  'افتح مركز المزامنة للتحقق من آخر اتصال وتحديث ما '
-                      'تسمح به صلاحيتك. لا تتضمن اللوحة أسر الجهات الأخرى '
-                      'أو إشراف الشبكة المستقبلي.',
-                  type: AppStatusType.success,
-                  icon: Icons.lock_outline,
-                ),
-
-                const SizedBox(height: 16),
-
-                AppButton(
-                  text: 'فتح مركز المزامنة',
-                  type: AppButtonType.secondary,
-                  onPressed: () {},
-                ),
+                // const AppStatusCard(
+                //   title: 'تحديث البيانات ضمن الجهة فقط',
+                //   message:
+                //   'افتح مركز المزامنة للتحقق من آخر اتصال وتحديث ما '
+                //       'تسمح به صلاحيتك. لا تتضمن اللوحة أسر الجهات الأخرى '
+                //       'أو إشراف الشبكة المستقبلي.',
+                //   type: AppStatusType.success,
+                //   icon: Icons.lock_outline,
+                // ),
+                //
+                // const SizedBox(height: 16),
+                //
+                // AppButton(
+                //   text: 'فتح مركز المزامنة',
+                //   type: AppButtonType.secondary,
+                //   onPressed: () {},
+                // ),
               ],
             ),
           ),
