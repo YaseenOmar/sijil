@@ -1,12 +1,10 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
-
 import 'package:sijil/features/families/data/models/family_model.dart';
 import 'package:sijil/features/family_creation/constants/family_options.dart';
 import 'package:sijil/features/family_creation/services/family_creation_service.dart';
@@ -14,22 +12,17 @@ import 'package:sijil/features/family_creation/utils/text_utils.dart';
 import 'package:sijil/features/family_creation/views/duplicate_family_screen.dart';
 import 'package:sijil/features/family_creation/views/family_housing_needs_screen.dart';
 import 'package:sijil/features/family_creation/views/family_review_screen.dart';
+import '../../families/views/widgets/family_details_screen.dart';
 
 // Result of the on-device duplicate check.
-enum LocalIdStatus {
-  idle,
-  noMatch,
-  match,
-}
+enum LocalIdStatus { idle, noMatch, match }
 
 class FamilyCreationController extends GetxController {
-  final FamilyCreationService _service =
-  FamilyCreationService();
+  final FamilyCreationService _service = FamilyCreationService();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -48,9 +41,7 @@ class FamilyCreationController extends GetxController {
   String areaId = FamilyOptions.defaultAreaId;
 
   final areaNameController = TextEditingController(
-    text: FamilyOptions.areaName(
-      FamilyOptions.defaultAreaId,
-    ),
+    text: FamilyOptions.areaName(FamilyOptions.defaultAreaId),
   );
 
   final addressController = TextEditingController();
@@ -70,6 +61,7 @@ class FamilyCreationController extends GetxController {
   final isCheckingId = false.obs;
   final isSaving = false.obs;
   final isSaved = false.obs;
+  final savedFamilyId = RxnString();
   final isConfirmed = false.obs;
 
   final saveError = RxnString();
@@ -89,67 +81,94 @@ class FamilyCreationController extends GetxController {
   }
 
   // Load the field worker's area from their account.
+
   Future<void> _loadAssignedArea() async {
     try {
       final currentUser = _auth.currentUser;
-
       if (currentUser == null) return;
 
-      final snapshot = await _firestore
+      final userDoc = await _firestore
           .collection('users')
           .doc(currentUser.uid)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
-      if (!snapshot.exists) return;
+      if (!userDoc.exists) return;
 
-      final data = snapshot.data()!;
+      final userData = userDoc.data()!;
 
-      if (data['role'] == 'field_worker') {
-        final assignedArea = data['areaId'];
+      if (userData['status'] != 'active') return;
 
-        if (assignedArea is String &&
-            assignedArea.isNotEmpty) {
-          areaId = assignedArea;
-
-          areaNameController.text =
-              FamilyOptions.areaName(assignedArea);
-        }
+      if (userData['role'] != 'field_worker') {
+        return;
       }
+
+      final orgId = userData['organizationId'];
+      final invitationId = userData['invitationId'];
+
+      if (orgId is! String ||
+          orgId.isEmpty ||
+          invitationId is! String ||
+          invitationId.isEmpty) {
+        throw const FamilyCreationException('بيانات ارتباط الموظف غير مكتملة');
+      }
+
+      final employeeDoc = await _firestore
+          .collection('organizations')
+          .doc(orgId)
+          .collection('employees')
+          .doc(invitationId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!employeeDoc.exists) {
+        throw const FamilyCreationException('سجل الموظف غير موجود');
+      }
+
+      final employee = employeeDoc.data()!;
+
+      if (employee['uid'] != currentUser.uid ||
+          employee['organizationId'] != orgId ||
+          employee['role'] != 'field_worker' ||
+          employee['status'] != 'active') {
+        throw const FamilyCreationException('سجل الموظف غير صالح');
+      }
+
+      final assignedArea = employee['areaId'];
+
+      if (assignedArea is! String || assignedArea.isEmpty) {
+        throw const FamilyCreationException('منطقة الموظف غير محددة');
+      }
+
+      areaId = assignedArea;
+
+      areaNameController.text = FamilyOptions.areaName(assignedArea);
     } catch (e) {
       debugPrint('Failed to load assigned area: $e');
+
+      Get.snackbar(
+        'تعذر تحميل المنطقة',
+        'لم نتمكن من تحديد منطقة الموظف. تحقق من الاتصال وأعد المحاولة.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
   // ---------- Clean values ----------
 
-  String get headName =>
-      headNameController.text.trim();
+  String get headName => headNameController.text.trim();
 
-  String get nationalId => toLatinDigits(
-    nationalIdController.text.trim(),
-  );
+  String get nationalId => toLatinDigits(nationalIdController.text.trim());
 
-  String get phone => toLatinDigits(
-    phoneController.text,
-  ).replaceAll(RegExp(r'[\s-]'), '');
+  String get phone =>
+      toLatinDigits(phoneController.text).replaceAll(RegExp(r'[\s-]'), '');
 
   int get membersCount =>
-      int.tryParse(
-        toLatinDigits(
-          membersCountController.text.trim(),
-        ),
-      ) ??
-          0;
+      int.tryParse(toLatinDigits(membersCountController.text.trim())) ?? 0;
 
-  String get address =>
-      addressController.text.trim();
+  String get address => addressController.text.trim();
 
-  List<String> get orderedNeeds =>
-      FamilyOptions.needs
-          .where(
-            (need) => selectedNeeds.contains(need),
-      )
-          .toList();
+  List<String> get orderedNeeds => FamilyOptions.needs
+      .where((need) => selectedNeeds.contains(need))
+      .toList();
 
   // ---------- Step 1 ----------
 
@@ -162,8 +181,7 @@ class FamilyCreationController extends GetxController {
       return;
     }
 
-    final found =
-    await _service.findLocalFamilyByNationalId(id);
+    final found = await _service.findLocalFamilyByNationalId(id);
 
     // Ignore outdated results.
     if (id != nationalId) return;
@@ -186,10 +204,7 @@ class FamilyCreationController extends GetxController {
     try {
       isCheckingId.value = true;
 
-      final existing =
-      await _service.findFamilyByNationalId(
-        nationalId,
-      );
+      final existing = await _service.findFamilyByNationalId(nationalId);
 
       if (existing != null) {
         existingFamily.value = existing;
@@ -205,16 +220,18 @@ class FamilyCreationController extends GetxController {
 
       Get.to(() => FamilyHousingNeedsScreen());
     } on FamilyCreationException catch (e) {
-      if (e.message == 'هذه الأسرة مسجلة مسبقاً') {
+      if (e.message.startsWith('هذه الأسرة مسجلة مسبقاً')) {
         localIdStatus.value = LocalIdStatus.match;
       }
 
-      Get.snackbar('تنبيه', e.message);
-    } catch (e) {
       Get.snackbar(
-        'خطأ',
-        'حدث خطأ غير متوقع أثناء التحقق من رقم الهوية',
+        'تنبيه',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 5),
       );
+    } catch (e) {
+      Get.snackbar('خطأ', 'حدث خطأ غير متوقع أثناء التحقق من رقم الهوية');
     } finally {
       isCheckingId.value = false;
     }
@@ -250,8 +267,7 @@ class FamilyCreationController extends GetxController {
       final bytes = await File(picked.path).length();
 
       idCardImagePath.value = picked.path;
-      idCardImageSizeKb.value =
-          (bytes / 1024).ceil();
+      idCardImageSizeKb.value = (bytes / 1024).ceil();
     } catch (e) {
       Get.snackbar(
         'خطأ',
@@ -268,8 +284,7 @@ class FamilyCreationController extends GetxController {
   void submitHousingInfo() {
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final isFormValid =
-        housingFormKey.currentState?.validate() ?? false;
+    final isFormValid = housingFormKey.currentState?.validate() ?? false;
 
     housingError.value = housingStatus.value == null
         ? 'يرجى اختيار حالة السكن'
@@ -302,10 +317,7 @@ class FamilyCreationController extends GetxController {
     if (isSaving.value || isSaved.value) return;
 
     if (!isConfirmed.value) {
-      Get.snackbar(
-        'تنبيه',
-        'يرجى تأكيد التحقق من البيانات مع الأسرة',
-      );
+      Get.snackbar('تنبيه', 'يرجى تأكيد التحقق من البيانات مع الأسرة');
       return;
     }
 
@@ -317,25 +329,19 @@ class FamilyCreationController extends GetxController {
       final family = await _buildFamily();
 
       // Remote transaction saves family and ID reservation.
-      await _service.addFamily(family);
+      final familyId = await _service.addFamily(family);
 
+      savedFamilyId.value = familyId;
       isSaved.value = true;
 
-      Get.snackbar(
-        'نجاح',
-        'تم حفظ الأسرة بنجاح',
-      );
+      Get.snackbar('نجاح', 'تم حفظ الأسرة بنجاح');
     } on FamilyCreationException catch (e) {
       saveError.value = e.message;
       Get.snackbar('خطأ', e.message);
     } catch (e) {
-      saveError.value =
-      'حدث خطأ غير متوقع أثناء حفظ الأسرة';
+      saveError.value = 'حدث خطأ غير متوقع أثناء حفظ الأسرة';
 
-      Get.snackbar(
-        'خطأ',
-        saveError.value!,
-      );
+      Get.snackbar('خطأ', saveError.value!);
     } finally {
       isSaving.value = false;
     }
@@ -346,9 +352,7 @@ class FamilyCreationController extends GetxController {
     final currentUser = _auth.currentUser;
 
     if (currentUser == null) {
-      throw const FamilyCreationException(
-        'يجب تسجيل الدخول أولاً',
-      );
+      throw const FamilyCreationException('يجب تسجيل الدخول أولاً');
     }
 
     final userDoc = await _firestore
@@ -357,56 +361,67 @@ class FamilyCreationController extends GetxController {
         .get(const GetOptions(source: Source.server));
 
     if (!userDoc.exists) {
-      throw const FamilyCreationException(
-        'لم يتم العثور على بيانات المستخدم',
-      );
+      throw const FamilyCreationException('لم يتم العثور على بيانات المستخدم');
     }
 
     final userData = userDoc.data()!;
 
     if (userData['status'] != 'active') {
-      throw const FamilyCreationException(
-        'الحساب غير نشط',
-      );
+      throw const FamilyCreationException('الحساب غير نشط');
     }
 
     final role = userData['role'];
 
     if (role != 'supervisor' && role != 'field_worker') {
-      throw const FamilyCreationException(
-        'ليس لديك صلاحية لإضافة الأسر',
-      );
+      throw const FamilyCreationException('ليس لديك صلاحية لإضافة الأسر');
     }
 
     final organizationId = userData['organizationId'];
 
-    if (organizationId is! String ||
-        organizationId.isEmpty) {
-      throw const FamilyCreationException(
-        'لم يتم تحديد المؤسسة',
-      );
+    if (organizationId is! String || organizationId.isEmpty) {
+      throw const FamilyCreationException('لم يتم تحديد المؤسسة');
     }
 
     String selectedAreaId = areaId;
 
     if (role == 'field_worker') {
-      final assignedArea = userData['areaId'];
+      final invitationId = userData['invitationId'];
 
-      if (assignedArea is! String ||
-          assignedArea.isEmpty) {
-        throw const FamilyCreationException(
-          'لم يتم تحديد منطقة الموظف',
-        );
+      if (invitationId is! String || invitationId.isEmpty) {
+        throw const FamilyCreationException('سجل دعوة الموظف غير محدد');
       }
 
-      // Always use the authorized field worker area.
+      final employeeDoc = await _firestore
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('employees')
+          .doc(invitationId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!employeeDoc.exists) {
+        throw const FamilyCreationException('سجل الموظف غير موجود');
+      }
+
+      final employee = employeeDoc.data()!;
+
+      if (employee['uid'] != currentUser.uid ||
+          employee['organizationId'] != organizationId ||
+          employee['role'] != 'field_worker' ||
+          employee['status'] != 'active') {
+        throw const FamilyCreationException('لا توجد صلاحية فعالة لإضافة أسرة');
+      }
+
+      final assignedArea = employee['areaId'];
+
+      if (assignedArea is! String || assignedArea.isEmpty) {
+        throw const FamilyCreationException('لم يتم تحديد منطقة الموظف');
+      }
+
       selectedAreaId = assignedArea;
     }
 
     if (!RegExp(r'^\d{9}$').hasMatch(nationalId)) {
-      throw const FamilyCreationException(
-        'رقم الهوية يجب أن يتكون من 9 أرقام',
-      );
+      throw const FamilyCreationException('رقم الهوية يجب أن يتكون من 9 أرقام');
     }
 
     _draftId ??= const Uuid().v4();
@@ -425,6 +440,86 @@ class FamilyCreationController extends GetxController {
       createdBy: currentUser.uid,
       organizationId: organizationId,
     );
+  }
+
+
+  Future<void> openSavedFamily() async {
+    final familyId = savedFamilyId.value;
+
+    if (familyId == null || familyId.isEmpty) {
+      Get.snackbar(
+        'تنبيه',
+        'لم يتم العثور على معرف الأسرة المحفوظة',
+      );
+      return;
+    }
+
+    try {
+      final currentUser = _auth.currentUser;
+
+      if (currentUser == null) {
+        throw const FamilyCreationException(
+          'يجب تسجيل الدخول أولاً',
+        );
+      }
+
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get(const GetOptions(source: Source.server));
+
+      if (!userDoc.exists) {
+        throw const FamilyCreationException(
+          'لم يتم العثور على بيانات الحساب',
+        );
+      }
+
+      final organizationId =
+      userDoc.data()?['organizationId'];
+
+      if (organizationId is! String ||
+          organizationId.isEmpty) {
+        throw const FamilyCreationException(
+          'لم يتم تحديد المؤسسة',
+        );
+      }
+
+      final familyDoc = await _firestore
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('families')
+          .doc(familyId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!familyDoc.exists) {
+        throw const FamilyCreationException(
+          'تعذر العثور على الأسرة المحفوظة',
+        );
+      }
+
+      final family = FamilyModel.fromMap({
+        ...familyDoc.data()!,
+        'id': familyDoc.id,
+      });
+
+      Get.to(
+            () => FamilyDetailsScreen(family: family),
+      );
+    } on FamilyCreationException catch (e) {
+      Get.snackbar('تنبيه', e.message);
+    } on FirebaseException catch (e) {
+      Get.snackbar(
+        'خطأ',
+        e.code == 'permission-denied'
+            ? 'ليس لديك صلاحية لعرض بيانات هذه الأسرة'
+            : 'تعذر تحميل بيانات الأسرة',
+      );
+    } catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ غير متوقع أثناء فتح تفاصيل الأسرة',
+      );
+    }
   }
 
   // ---------- After saving ----------
@@ -450,7 +545,7 @@ class FamilyCreationController extends GetxController {
 
     housingError.value = null;
     needsError.value = null;
-
+    savedFamilyId.value = null;
     removeIdCardImage();
 
     existingFamily.value = null;

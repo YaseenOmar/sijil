@@ -53,9 +53,9 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       if (sessionController.isSupervisor) {
-        Get.offAll(() => const ManagerHomeScreen());
+        Get.offAll(() => ManagerHomeScreen());
       } else if (sessionController.isFieldWorker) {
-        Get.offAll(() => const HomeScreen());
+        Get.offAll(() =>  HomeScreen());
       } else {
         await sessionController.logout(navigate: false);
 

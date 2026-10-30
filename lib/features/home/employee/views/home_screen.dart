@@ -10,12 +10,15 @@ import 'package:sijil/features/home/widgets/home_quick_actions.dart';
 import 'package:sijil/features/home/widgets/home_stats_grid.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 
+import '../../../auth/controllers/user_session_controller.dart';
+
 /// Main screen shown after a successful login.
 ///
 /// This screen only arranges the sections and handles navigation.
 /// Each section lives in its own widget inside `widgets/`.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  HomeScreen({super.key});
+  final session = Get.find<UserSessionController>();
 
   static const double _screenPadding = 20;
 
@@ -26,7 +29,7 @@ class HomeScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.neutralBackground,
         appBar:  CustomAppBar(
-          title: 'صباح الخير، أحمد',
+          title: 'صباح الخير، ${session.fullName.value}',
           action: Icons.notifications_outlined,
         ),
         body: SafeArea(
@@ -35,8 +38,8 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'جمعية الأمان · العامل الميداني',
+                 Text(
+                  '${session.organizationName} · ${session.roleName}',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

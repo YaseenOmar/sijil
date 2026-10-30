@@ -2,12 +2,12 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:sijil/features/families/data/datasources/family_remote_datasource.dart';
 import 'package:sijil/features/families/data/models/family_model.dart';
 
-// Exception with a message safe to display to the user.
+// Exception with a safe message for the user.
 class FamilyCreationException implements Exception {
   final String message;
 
@@ -18,21 +18,30 @@ class FamilyCreationException implements Exception {
 }
 
 class FamilyCreationService {
-  final FamilyRemoteDataSource _remote =
-  FamilyRemoteDataSource();
-
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
-  static const Duration _timeout =
+  final FirebaseFunctions _functions =
+  FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  );
+
+  static const Duration _readTimeout =
   Duration(seconds: 15);
+
+  static const Duration _writeTimeout =
+  Duration(seconds: 65);
 
   static const String _duplicateMessage =
       'هذه الأسرة مسجلة مسبقاً';
 
-  // Get the authenticated user's account information.
+  // ----------------------------------------
+  // Get authenticated user's profile
+  // ----------------------------------------
+
   Future<Map<String, dynamic>> _getUserData({
     Source source = Source.server,
   }) async {
@@ -63,45 +72,92 @@ class FamilyCreationService {
       );
     }
 
-    if (data['role'] != 'supervisor' &&
-        data['role'] != 'field_worker') {
+    final role = data['role'];
+
+    if (role != 'supervisor' &&
+        role != 'field_worker') {
       throw const FamilyCreationException(
         'ليس لديك صلاحية لإدارة الأسر',
       );
     }
 
-    if (data['organizationId'] is! String ||
-        (data['organizationId'] as String).isEmpty) {
+    final orgId = data['organizationId'];
+
+    if (orgId is! String || orgId.isEmpty) {
       throw const FamilyCreationException(
         'لم يتم تحديد المؤسسة',
-      );
-    }
-
-    if (data['role'] == 'field_worker' &&
-        (data['areaId'] is! String ||
-            (data['areaId'] as String).isEmpty)) {
-      throw const FamilyCreationException(
-        'لم يتم تحديد منطقة الموظف',
       );
     }
 
     return data;
   }
 
-  // Search for a reserved national ID in the entire organization.
-  //
-  // If the user can access the family, return its data.
-  // If the family belongs to another area, report a duplicate
-  // without revealing its details.
-  //
-  // null means the national ID is not registered.
+  // ----------------------------------------
+  // Get current field worker area
+  // ----------------------------------------
+
+  Future<String?> _getCurrentAreaId({
+    required Map<String, dynamic> userData,
+    Source source = Source.server,
+  }) async {
+    if (userData['role'] == 'supervisor') {
+      return null;
+    }
+
+    final orgId = userData['organizationId'];
+    final invitationId = userData['invitationId'];
+
+    if (orgId is! String ||
+        invitationId is! String ||
+        invitationId.isEmpty) {
+      throw const FamilyCreationException(
+        'بيانات ارتباط الموظف غير مكتملة',
+      );
+    }
+
+    final employeeDoc = await _firestore
+        .collection('organizations')
+        .doc(orgId)
+        .collection('employees')
+        .doc(invitationId)
+        .get(GetOptions(source: source));
+
+    final employee = employeeDoc.data();
+
+    if (!employeeDoc.exists ||
+        employee == null ||
+        employee['status'] != 'active' ||
+        employee['role'] != 'field_worker' ||
+        employee['organizationId'] != orgId ||
+        employee['uid'] != _auth.currentUser?.uid) {
+      throw const FamilyCreationException(
+        'سجل الموظف غير فعال أو غير صالح',
+      );
+    }
+
+    final areaId = employee['areaId'];
+
+    if (areaId is! String || areaId.isEmpty) {
+      throw const FamilyCreationException(
+        'لم يتم تحديد منطقة الموظف',
+      );
+    }
+
+    return areaId;
+  }
+
+  // ----------------------------------------
+  // Check national ID on server
+  // ----------------------------------------
+
   Future<FamilyModel?> findFamilyByNationalId(
       String nationalId,
       ) async {
     try {
       final normalizedId = nationalId.trim();
 
-      if (!RegExp(r'^[0-9]{9}$').hasMatch(normalizedId)) {
+      if (!RegExp(r'^[0-9]{9}$')
+          .hasMatch(normalizedId)) {
         throw const FamilyCreationException(
           'رقم الهوية يجب أن يتكون من 9 أرقام',
         );
@@ -119,34 +175,44 @@ class FamilyCreationService {
       final reservation = await organizationRef
           .collection('familyNationalIds')
           .doc(normalizedId)
-          .get(const GetOptions(source: Source.server))
-          .timeout(_timeout);
+          .get(
+        const GetOptions(source: Source.server),
+      )
+          .timeout(_readTimeout);
 
-      // No reservation: national ID is available.
       if (!reservation.exists) {
         return null;
       }
 
-      final familyId = reservation.data()?['familyId'];
+      final reservationData = reservation.data()!;
+      final familyId = reservationData['familyId'];
+
+      final registeredBy =
+      reservationData['createdByName'] as String?;
+
+      final duplicateMessage =
+      _buildDuplicateMessage(registeredBy);
 
       if (familyId is! String || familyId.isEmpty) {
-        throw const FamilyCreationException(
-          _duplicateMessage,
+        throw FamilyCreationException(
+          duplicateMessage,
         );
       }
 
-      // We already know the ID is registered.
-      // Try to retrieve family details only if permitted.
+      // The worker may not read family details
+      // from another area.
       try {
         final familyDoc = await organizationRef
             .collection('families')
             .doc(familyId)
-            .get(const GetOptions(source: Source.server))
-            .timeout(_timeout);
+            .get(
+          const GetOptions(source: Source.server),
+        )
+            .timeout(_readTimeout);
 
         if (!familyDoc.exists) {
-          throw const FamilyCreationException(
-            _duplicateMessage,
+          throw FamilyCreationException(
+            duplicateMessage,
           );
         }
 
@@ -156,10 +222,8 @@ class FamilyCreationService {
         });
       } on FirebaseException catch (e) {
         if (e.code == 'permission-denied') {
-          // Registered in another area:
-          // do not expose private family information.
-          throw const FamilyCreationException(
-            _duplicateMessage,
+          throw FamilyCreationException(
+            duplicateMessage,
           );
         }
 
@@ -169,7 +233,7 @@ class FamilyCreationService {
       rethrow;
     } on TimeoutException {
       throw const FamilyCreationException(
-        'تعذر الاتصال بالإنترنت، تحقق من الاتصال وحاول مرة أخرى',
+        'تعذر الاتصال بالخادم للتحقق من رقم الهوية',
       );
     } on FirebaseException catch (e) {
       throw FamilyCreationException(
@@ -182,18 +246,24 @@ class FamilyCreationService {
     }
   }
 
-  // Local check while typing.
-  //
-  // This checks only family documents cached on this device,
-  // inside the current user's authorized area.
-  //
-  // A missing cached result does NOT prove the ID is available.
+  // ----------------------------------------
+  // Check local cached families
+  // ----------------------------------------
+
   Future<FamilyModel?> findLocalFamilyByNationalId(
       String nationalId,
       ) async {
     try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) return null;
+      final normalizedId = nationalId.trim();
+
+      if (!RegExp(r'^[0-9]{9}$')
+          .hasMatch(normalizedId)) {
+        return null;
+      }
+
+      if (_auth.currentUser == null) {
+        return null;
+      }
 
       final userData = await _getUserData(
         source: Source.cache,
@@ -202,27 +272,41 @@ class FamilyCreationService {
       final organizationId =
       userData['organizationId'] as String;
 
-      Query<Map<String, dynamic>> query = _firestore
+      Query<Map<String, dynamic>> query =
+      _firestore
           .collection('organizations')
           .doc(organizationId)
           .collection('families')
           .where(
         'nationalId',
-        isEqualTo: nationalId.trim(),
+        isEqualTo: normalizedId,
       );
 
       if (userData['role'] == 'field_worker') {
+        final currentArea = await _getCurrentAreaId(
+          userData: userData,
+          source: Source.cache,
+        );
+
+        if (currentArea == null) {
+          return null;
+        }
+
         query = query.where(
           'areaId',
-          isEqualTo: userData['areaId'] as String,
+          isEqualTo: currentArea,
         );
       }
 
       final snapshot = await query
           .limit(1)
-          .get(const GetOptions(source: Source.cache));
+          .get(
+        const GetOptions(source: Source.cache),
+      );
 
-      if (snapshot.docs.isEmpty) return null;
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
 
       final doc = snapshot.docs.first;
 
@@ -231,47 +315,181 @@ class FamilyCreationService {
         'id': doc.id,
       });
     } catch (_) {
-      // Cache is unavailable or has no matching family.
-      // Server validation still happens before proceeding.
+      // Missing cached data never proves that
+      // the national ID is available.
       return null;
     }
   }
 
-  // Save through the remote data source.
-  //
-  // The remote data source must use a transaction that
-  // creates the family and national ID reservation together.
-  Future<void> addFamily(FamilyModel family) async {
+  // ----------------------------------------
+  // Create family using Cloud Function
+  // ----------------------------------------
+
+  Future<String> addFamily(FamilyModel family) async {
     try {
-      await _remote
-          .addFamily(family)
-          .timeout(_timeout);
+      final currentUser = _auth.currentUser;
+
+      if (currentUser == null) {
+        throw const FamilyCreationException(
+          'يجب تسجيل الدخول أولاً',
+        );
+      }
+
+      final userData = await _getUserData();
+
+      final organizationId =
+      userData['organizationId'] as String;
+
+      final normalizedNationalId =
+      family.nationalId.trim();
+
+      if (!RegExp(r'^[0-9]{9}$')
+          .hasMatch(normalizedNationalId)) {
+        throw const FamilyCreationException(
+          'رقم الهوية يجب أن يتكون من 9 أرقام',
+        );
+      }
+
+      if (family.organizationId != organizationId) {
+        throw const FamilyCreationException(
+          'الأسرة لا تتبع المؤسسة الحالية',
+        );
+      }
+
+      // Client-side permission check.
+      // The Cloud Function independently verifies it.
+      final currentArea = await _getCurrentAreaId(
+        userData: userData,
+      );
+
+      if (currentArea != null &&
+          family.areaId != currentArea) {
+        throw const FamilyCreationException(
+          'لا يمكنك إضافة أسرة خارج منطقتك',
+        );
+      }
+
+      final callable = _functions.httpsCallable(
+        'createFamily',
+        options: HttpsCallableOptions(
+          timeout: _writeTimeout,
+        ),
+      );
+
+
+      final result = await callable.call<Map<String, dynamic>>({
+        'organizationId': organizationId,
+        'family': {
+          'headName': family.headName.trim(),
+          'nationalId': normalizedNationalId,
+          'phoneNumber': family.phoneNumber,
+          'membersCount': family.membersCount,
+          'address': family.address,
+          'housingStatus': family.housingStatus,
+          'needs': family.needs,
+          'areaId': family.areaId,
+          'idCardImagePath': family.idCardImagePath,
+        },
+      });
+
+      final data = result.data;
+
+      if (data['success'] != true ||
+          data['familyId'] is! String ||
+          (data['familyId'] as String).isEmpty) {
+        throw const FamilyCreationException(
+          'لم يتم استلام معرف الأسرة من الخادم',
+        );
+      }
+
+      return data['familyId'] as String;
+
+
     } on FamilyCreationException {
       rethrow;
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'already-exists') {
+        final details = e.details;
+
+        String? createdByName;
+
+        if (details is Map) {
+          final value = details['createdByName'];
+
+          if (value is String && value.isNotEmpty) {
+            createdByName = value;
+          }
+        }
+
+        throw FamilyCreationException(
+          _buildDuplicateMessage(createdByName),
+        );
+      }
+
+      throw FamilyCreationException(
+        _functionsMessage(e),
+      );
     } on TimeoutException {
       throw const FamilyCreationException(
-        'انتهت مهلة الاتصال. تحقق من Firestore قبل إعادة المحاولة',
+        'انتهت مهلة الاتصال. قد تكون الأسرة حُفظت؛ '
+            'تحقق من رقم الهوية قبل إعادة المحاولة',
       );
     } on FirebaseException catch (e) {
       throw FamilyCreationException(
         _firebaseMessage(e.code),
       );
-    } catch (e) {
-      if (e.toString().contains(_duplicateMessage)) {
-        throw const FamilyCreationException(
-          _duplicateMessage,
-        );
-      }
-
-      if (e.toString().contains('معرف الأسرة مستخدم')) {
-        throw const FamilyCreationException(
-          'تعذر الحفظ: معرف الأسرة مستخدم مسبقاً',
-        );
-      }
-
+    } catch (_) {
       throw const FamilyCreationException(
-        'تعذر حفظ الأسرة، يرجى المحاولة مرة أخرى',
+        'تعذر تأكيد نتيجة الحفظ، تحقق من رقم الهوية '
+            'قبل إعادة المحاولة',
       );
+    }
+  }
+
+  // ----------------------------------------
+  // User-friendly error messages
+  // ----------------------------------------
+
+  String _buildDuplicateMessage(String? employeeName) {
+    if (employeeName != null &&
+        employeeName.trim().isNotEmpty) {
+      return 'هذه الأسرة مسجلة مسبقاً من قِبل '
+          '$employeeName';
+    }
+
+    return _duplicateMessage;
+  }
+
+  String _functionsMessage(
+      FirebaseFunctionsException error,
+      ) {
+    switch (error.code) {
+      case 'unauthenticated':
+        return 'يجب تسجيل الدخول أولاً';
+
+      case 'permission-denied':
+        return error.message ??
+            'ليس لديك صلاحية لتنفيذ هذه العملية';
+
+      case 'invalid-argument':
+        return error.message ??
+            'بيانات الأسرة غير صحيحة';
+
+      case 'failed-precondition':
+        return error.message ??
+            'تعذر تنفيذ العملية';
+
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return 'تعذر تأكيد نتيجة الحفظ بسبب الاتصال. '
+            'تحقق من رقم الهوية قبل إعادة المحاولة';
+
+      case 'already-exists':
+        return _duplicateMessage;
+
+      default:
+        return 'تعذر حفظ الأسرة: '
+            '${error.message ?? 'خطأ غير معروف'}';
     }
   }
 

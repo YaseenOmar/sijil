@@ -21,7 +21,10 @@ class _SessionActivityMonitorState
     extends State<SessionActivityMonitor>
     with WidgetsBindingObserver {
 
-  final session = Get.find<UserSessionController>();
+  final UserSessionController session =
+  Get.find<UserSessionController>();
+
+  bool _checkingSession = false;
 
   @override
   void initState() {
@@ -30,9 +33,23 @@ class _SessionActivityMonitorState
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(
+      AppLifecycleState state,
+      ) {
     if (state == AppLifecycleState.resumed) {
-      session.checkSession();
+      _checkSessionOnResume();
+    }
+  }
+
+  Future<void> _checkSessionOnResume() async {
+    if (_checkingSession) return;
+
+    _checkingSession = true;
+
+    try {
+      await session.checkSession();
+    } finally {
+      _checkingSession = false;
     }
   }
 
@@ -41,7 +58,9 @@ class _SessionActivityMonitorState
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) {
-        session.recordActivity();
+        if (!_checkingSession) {
+          session.recordActivity();
+        }
       },
       child: widget.child,
     );

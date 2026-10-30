@@ -3,10 +3,10 @@ import 'package:sijil/core/widgets/custom_app_bar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/family_model.dart';
 
-class FamilyDetailScreen extends StatelessWidget {
+class FamilyDetailsScreen extends StatelessWidget {
   final FamilyModel family;
 
-  const FamilyDetailScreen({super.key, required this.family});
+  const FamilyDetailsScreen({super.key, required this.family});
 
   @override
   Widget build(BuildContext context) {
