@@ -14,8 +14,11 @@ class EmployeeController extends GetxController {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
   final RxBool isLoading = false.obs;
+
   // Stores the received sign-in link
   final RxnString pendingInvitationLink = RxnString();
+  final RxnString pendingOrganizationId = RxnString();
+  final RxnString pendingInvitationId = RxnString();
 
   @override
   void onInit() {
@@ -24,14 +27,14 @@ class EmployeeController extends GetxController {
   }
 
   // Add employee and send invitation
-  Future<void> addEmployee({
+  Future<bool> addEmployee({
     required String fullName,
     required String email,
     required String role,
     required String areaId,
     required String organizationId,
   }) async {
-    if (isLoading.value) return;
+    if (isLoading.value) return false;
 
     isLoading.value = true;
 
@@ -55,7 +58,7 @@ class EmployeeController extends GetxController {
       }
 
       final employee = EmployeeModel(
-        id: '',
+        uid: null,
         fullName: fullName.trim(),
         email: employeeEmail,
         role: role,
@@ -67,21 +70,29 @@ class EmployeeController extends GetxController {
       );
 
       // Save employee in Firestore
-      await _firestore
+      final employeeRef = _firestore
           .collection('organizations')
           .doc(organizationId)
           .collection('employees')
-          .add(employee.toMap());
+          .doc();
+
+      // Save employee invitation with a known document ID
+      await employeeRef.set(employee.toMap());
 
       employeeSaved = true;
 
-      // Send invitation email
-      await sendEmployeeInvitation(email: employee.email);
+      // Send invitation with organization and invitation IDs
+      await sendEmployeeInvitation(
+        email: employee.email,
+        organizationId: organizationId,
+        invitationId: employeeRef.id,
+      );
 
       Get.snackbar(
         'تم إرسال الدعوة',
         'تم حفظ بيانات الموظف وطلب إرسال رابط تسجيل الدخول',
       );
+      return true;
     } catch (e) {
       Get.snackbar(
         'خطأ',
@@ -89,21 +100,33 @@ class EmployeeController extends GetxController {
             ? 'تم حفظ الموظف، لكن فشل إرسال البريد: $e'
             : 'فشلت إضافة الموظف: $e',
       );
+      return false;
     } finally {
       isLoading.value = false;
     }
   }
 
   // Send Firebase email sign-in link
-  Future<void> sendEmployeeInvitation({required String email}) async {
+
+  Future<void> sendEmployeeInvitation({
+    required String email,
+    required String organizationId,
+    required String invitationId,
+  }) async {
     final employeeEmail = email.trim().toLowerCase();
 
     if (employeeEmail.isEmpty) {
       throw Exception('البريد الإلكتروني مطلوب');
     }
 
+    // Continue URL with invitation information
+    final continueUrl = Uri.https('sijil-aa471.web.app', '/invite', {
+      'orgId': organizationId,
+      'inviteId': invitationId,
+    });
+
     final settings = ActionCodeSettings(
-      url: 'https://sijil-aa471.web.app',
+      url: continueUrl.toString(),
       handleCodeInApp: true,
       androidPackageName: 'com.sijil.sijil',
       androidInstallApp: false,
@@ -116,14 +139,11 @@ class EmployeeController extends GetxController {
   }
 
   // Listen for incoming email links
+
   void listenForInvitationLinks() {
     _linkSubscription ??= _appLinks.uriLinkStream.listen(
       (uri) {
-        final link = uri.toString();
-
-        if (_auth.isSignInWithEmailLink(link)) {
-          pendingInvitationLink.value = link;
-        }
+        _handleInvitationUri(uri);
       },
       onError: (error) {
         Get.snackbar('خطأ', 'تعذر استقبال رابط الدعوة');
@@ -131,34 +151,94 @@ class EmployeeController extends GetxController {
     );
   }
 
+  void _handleInvitationUri(Uri uri) {
+    try {
+      // Firebase links may contain nested URLs.
+      Uri currentUri = uri;
+
+      for (int i = 0; i < 5; i++) {
+        final nestedLink = currentUri.queryParameters['link'];
+
+        if (nestedLink == null) break;
+
+        currentUri = Uri.parse(nestedLink);
+      }
+
+      // Firebase authentication link
+      final emailLink = currentUri.toString();
+
+      if (!_auth.isSignInWithEmailLink(emailLink)) {
+        return;
+      }
+
+      // Extract the continuation URL
+      final continueUrl = currentUri.queryParameters['continueUrl'];
+
+      if (continueUrl == null) {
+        throw Exception('بيانات الدعوة غير موجودة');
+      }
+
+      final invitationUri = Uri.parse(continueUrl);
+
+      if (invitationUri.scheme != 'https' ||
+          invitationUri.host != 'sijil-aa471.web.app' ||
+          invitationUri.path != '/invite') {
+        throw Exception('رابط المتابعة غير صحيح');
+      }
+
+      final orgId = invitationUri.queryParameters['orgId'];
+
+      final inviteId = invitationUri.queryParameters['inviteId'];
+
+      if (orgId == null ||
+          orgId.isEmpty ||
+          inviteId == null ||
+          inviteId.isEmpty) {
+        throw Exception('بيانات الدعوة غير مكتملة');
+      }
+
+      pendingInvitationLink.value = emailLink;
+      pendingOrganizationId.value = orgId;
+      pendingInvitationId.value = inviteId;
+    } catch (e) {
+      Get.snackbar('رابط غير صالح', 'تعذر قراءة بيانات الدعوة');
+    }
+  }
+
   // Check whether an invitation link was received
-  bool get hasPendingInvitation => pendingInvitationLink.value != null;
+  // Check whether complete invitation data was received
+  bool get hasPendingInvitation =>
+      pendingInvitationLink.value != null &&
+      pendingOrganizationId.value != null &&
+      pendingInvitationId.value != null;
 
   Future<bool> acceptInvitation({required String email}) async {
     if (isLoading.value) return false;
 
-    try {
-      isLoading.value = true;
+    isLoading.value = true;
 
+    try {
       final employeeEmail = email.trim().toLowerCase();
 
-      // Get received invitation link
       final emailLink = pendingInvitationLink.value;
 
-      if (employeeEmail.isEmpty) {
-        throw Exception('يرجى إدخال البريد الإلكتروني');
+      final orgId = pendingOrganizationId.value;
+
+      final inviteId = pendingInvitationId.value;
+
+      // Validate received invitation data
+      if (employeeEmail.isEmpty ||
+          emailLink == null ||
+          orgId == null ||
+          inviteId == null) {
+        throw Exception('بيانات الدعوة غير مكتملة');
       }
 
-      if (emailLink == null) {
-        throw Exception('لم يتم العثور على رابط الدعوة');
-      }
-
-      // Validate Firebase email sign-in link
       if (!_auth.isSignInWithEmailLink(emailLink)) {
-        throw Exception('رابط الدعوة غير صالح');
+        throw Exception('رابط تسجيل الدخول غير صالح');
       }
 
-      // Sign in with email link
+      // Step 1: Authenticate employee
       final credential = await _auth.signInWithEmailLink(
         email: employeeEmail,
         emailLink: emailLink,
@@ -170,37 +250,104 @@ class EmployeeController extends GetxController {
         throw Exception('فشل تسجيل الدخول');
       }
 
-      // Clear used invitation link
+      // Refresh authentication information
+      await user.reload();
+
+      final authenticatedUser = _auth.currentUser!;
+
+      final token = await authenticatedUser.getIdTokenResult(true);
+
+      if (token.claims?['email_verified'] != true) {
+        throw Exception('البريد الإلكتروني غير موثق');
+      }
+
+      if (authenticatedUser.email?.toLowerCase() != employeeEmail) {
+        throw Exception('البريد الإلكتروني غير مطابق');
+      }
+
+      // Step 2: Locate employee invitation
+      final invitationRef = _firestore
+          .collection('organizations')
+          .doc(orgId)
+          .collection('employees')
+          .doc(inviteId);
+
+      final invitationSnapshot = await invitationRef.get();
+
+      if (!invitationSnapshot.exists) {
+        throw Exception('لم يتم العثور على الدعوة');
+      }
+
+      final invitation = invitationSnapshot.data()!;
+
+      // Step 3: Validate invitation
+      if (invitation['status'] != 'pending') {
+        throw Exception('تم استخدام الدعوة مسبقاً');
+      }
+
+      if (invitation['uid'] != null) {
+        throw Exception('الدعوة مرتبطة بحساب آخر');
+      }
+
+      if (invitation['email'] != employeeEmail) {
+        throw Exception('البريد لا يطابق بريد الدعوة');
+      }
+
+      if (invitation['organizationId'] != orgId ||
+          invitation['role'] != 'field_worker') {
+        throw Exception('بيانات الدعوة غير صالحة');
+      }
+
+      // Step 4: Prepare employee account
+      final userRef = _firestore.collection('users').doc(authenticatedUser.uid);
+
+      final userSnapshot = await userRef.get();
+
+      if (userSnapshot.exists) {
+        throw Exception('يوجد حساب مرتبط بهذا المستخدم');
+      }
+
+      final employeeData = <String, dynamic>{
+        'fullName': invitation['fullName'],
+        'email': invitation['email'],
+        'role': invitation['role'],
+        'areaId': invitation['areaId'],
+        'organizationId': invitation['organizationId'],
+        'invitationId': inviteId,
+        'status': 'active',
+        'createdAt': invitation['createdAt'],
+      };
+
+      // Step 5: Atomic Firestore write
+      final batch = _firestore.batch();
+
+      batch.set(userRef, employeeData);
+
+      batch.update(invitationRef, {
+        'uid': authenticatedUser.uid,
+        'status': 'active',
+      });
+
+      await batch.commit();
+
+      // Clear invitation data after success
       pendingInvitationLink.value = null;
+      pendingOrganizationId.value = null;
+      pendingInvitationId.value = null;
 
       Get.snackbar(
-        'تم التحقق بنجاح',
-        'تم تأكيد البريد الإلكتروني، والحساب بانتظار التفعيل',
+        'تم تفعيل الحساب',
+        'تم قبول الدعوة وإنشاء حساب الموظف بنجاح',
       );
 
       return true;
     } on FirebaseAuthException catch (e) {
-      String message;
+      Get.snackbar('خطأ في المصادقة', e.message ?? 'تعذر تسجيل الدخول');
 
-      switch (e.code) {
-        case 'invalid-email':
-          message = 'البريد الإلكتروني غير صالح';
-          break;
+      return false;
+    } on FirebaseException catch (e) {
+      Get.snackbar('خطأ في قاعدة البيانات', e.message ?? 'تعذر تفعيل الحساب');
 
-        case 'invalid-action-code':
-        case 'expired-action-code':
-          message = 'رابط تسجيل الدخول غير صالح أو منتهي الصلاحية';
-          break;
-
-        case 'user-disabled':
-          message = 'هذا الحساب معطّل';
-          break;
-
-        default:
-          message = e.message ?? 'فشل التحقق من البريد الإلكتروني';
-      }
-
-      Get.snackbar('خطأ', message);
       return false;
     } catch (e) {
       Get.snackbar('خطأ', e.toString());

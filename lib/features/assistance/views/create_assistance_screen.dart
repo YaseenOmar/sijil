@@ -190,7 +190,6 @@ class _CreateAssistanceScreenState extends State<CreateAssistanceScreen> {
         backgroundColor: const Color(0xFFF9FAFB),
         appBar: CustomAppBar(
           title: 'تسجيل مساعدة',
-          subtitle: 'توثيق التسليم',
           leading: Icons.arrow_back,
           onLeadingPressed: () => Get.back(),
         ),

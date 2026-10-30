@@ -1,8 +1,12 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sijil/core/constants/demo_context.dart';
+import 'package:uuid/uuid.dart';
+
 import 'package:sijil/features/families/data/models/family_model.dart';
 import 'package:sijil/features/family_creation/constants/family_options.dart';
 import 'package:sijil/features/family_creation/services/family_creation_service.dart';
@@ -10,39 +14,55 @@ import 'package:sijil/features/family_creation/utils/text_utils.dart';
 import 'package:sijil/features/family_creation/views/duplicate_family_screen.dart';
 import 'package:sijil/features/family_creation/views/family_housing_needs_screen.dart';
 import 'package:sijil/features/family_creation/views/family_review_screen.dart';
-import 'package:uuid/uuid.dart';
 
-// Result of the on-device duplicate check shown under the national ID field
-enum LocalIdStatus { idle, noMatch, match }
+// Result of the on-device duplicate check.
+enum LocalIdStatus {
+  idle,
+  noMatch,
+  match,
+}
 
-// One controller for the 3 steps: basic data -> housing & needs -> review
 class FamilyCreationController extends GetxController {
-  final FamilyCreationService _service = FamilyCreationService();
+  final FamilyCreationService _service =
+  FamilyCreationService();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
   final ImagePicker _picker = ImagePicker();
 
-  // One form key per step (each key belongs to one Form only)
+  // ---------- Form keys ----------
   final basicFormKey = GlobalKey<FormState>();
   final housingFormKey = GlobalKey<FormState>();
 
-  // ---------- Step 1: basic data ----------
+  // ---------- Step 1: Basic information ----------
   final headNameController = TextEditingController();
   final nationalIdController = TextEditingController();
   final phoneController = TextEditingController();
   final membersCountController = TextEditingController();
 
-  // ---------- Step 2: housing & needs ----------
-  final String areaId = FamilyOptions.defaultAreaId;
+  // ---------- Step 2: Housing and needs ----------
+
+  String areaId = FamilyOptions.defaultAreaId;
+
   final areaNameController = TextEditingController(
-    text: FamilyOptions.areaName(FamilyOptions.defaultAreaId),
+    text: FamilyOptions.areaName(
+      FamilyOptions.defaultAreaId,
+    ),
   );
+
   final addressController = TextEditingController();
 
   final housingStatus = RxnString();
+
   final selectedNeeds = <String>[].obs;
+
   final housingError = RxnString();
   final needsError = RxnString();
 
-  // Local ID card image (optional)
+  // ---------- Optional ID image ----------
   final idCardImagePath = RxnString();
   final idCardImageSizeKb = 0.obs;
 
@@ -51,33 +71,89 @@ class FamilyCreationController extends GetxController {
   final isSaving = false.obs;
   final isSaved = false.obs;
   final isConfirmed = false.obs;
+
   final saveError = RxnString();
 
-  // Family found by national ID (duplicate screen)
+  // Keep this property for the existing duplicate screen.
   final existingFamily = Rxn<FamilyModel>();
 
-  // Instant on-device check while typing the national ID
   final localIdStatus = LocalIdStatus.idle.obs;
 
-  // Same ID is reused when the user retries saving the same family
+  // Reuse the same document ID when retrying.
   String? _draftId;
 
-  // ---------- Clean values ----------
-  String get headName => headNameController.text.trim();
-  String get nationalId => toLatinDigits(nationalIdController.text.trim());
-  String get phone =>
-      toLatinDigits(phoneController.text).replaceAll(RegExp(r'[\s-]'), '');
-  int get membersCount =>
-      int.tryParse(toLatinDigits(membersCountController.text.trim())) ?? 0;
-  String get address => addressController.text.trim();
+  @override
+  void onInit() {
+    super.onInit();
+    _loadAssignedArea();
+  }
 
-  // Needs in the same order as the options list
-  List<String> get orderedNeeds => FamilyOptions.needs
-      .where((need) => selectedNeeds.contains(need))
-      .toList();
+  // Load the field worker's area from their account.
+  Future<void> _loadAssignedArea() async {
+    try {
+      final currentUser = _auth.currentUser;
+
+      if (currentUser == null) return;
+
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+
+      if (data['role'] == 'field_worker') {
+        final assignedArea = data['areaId'];
+
+        if (assignedArea is String &&
+            assignedArea.isNotEmpty) {
+          areaId = assignedArea;
+
+          areaNameController.text =
+              FamilyOptions.areaName(assignedArea);
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load assigned area: $e');
+    }
+  }
+
+  // ---------- Clean values ----------
+
+  String get headName =>
+      headNameController.text.trim();
+
+  String get nationalId => toLatinDigits(
+    nationalIdController.text.trim(),
+  );
+
+  String get phone => toLatinDigits(
+    phoneController.text,
+  ).replaceAll(RegExp(r'[\s-]'), '');
+
+  int get membersCount =>
+      int.tryParse(
+        toLatinDigits(
+          membersCountController.text.trim(),
+        ),
+      ) ??
+          0;
+
+  String get address =>
+      addressController.text.trim();
+
+  List<String> get orderedNeeds =>
+      FamilyOptions.needs
+          .where(
+            (need) => selectedNeeds.contains(need),
+      )
+          .toList();
 
   // ---------- Step 1 ----------
-  // Runs while typing: only checks records cached on this device (works offline)
+
+  // Check only locally cached data while typing.
   Future<void> onNationalIdChanged(String _) async {
     final id = nationalId;
 
@@ -86,13 +162,15 @@ class FamilyCreationController extends GetxController {
       return;
     }
 
-    final found = await _service.findLocalFamilyByNationalId(id);
+    final found =
+    await _service.findLocalFamilyByNationalId(id);
 
-    // Ignore an old result if the user kept typing
+    // Ignore outdated results.
     if (id != nationalId) return;
 
+    // A cache miss does not prove the ID is available.
     localIdStatus.value = found == null
-        ? LocalIdStatus.noMatch
+        ? LocalIdStatus.idle
         : LocalIdStatus.match;
   }
 
@@ -101,32 +179,49 @@ class FamilyCreationController extends GetxController {
 
     FocusManager.instance.primaryFocus?.unfocus();
 
-    if (!(basicFormKey.currentState?.validate() ?? false)) return;
+    if (!(basicFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     try {
       isCheckingId.value = true;
 
-      // Check if the family is already registered
-      final existing = await _service.findFamilyByNationalId(nationalId);
+      final existing =
+      await _service.findFamilyByNationalId(
+        nationalId,
+      );
 
       if (existing != null) {
         existingFamily.value = existing;
+        localIdStatus.value = LocalIdStatus.match;
+
         Get.to(() => const DuplicateFamilyScreen());
         return;
       }
 
+      // National ID is not reserved on the server.
       existingFamily.value = null;
+      localIdStatus.value = LocalIdStatus.noMatch;
+
       Get.to(() => FamilyHousingNeedsScreen());
     } on FamilyCreationException catch (e) {
-      Get.snackbar('خطأ', e.message);
+      if (e.message == 'هذه الأسرة مسجلة مسبقاً') {
+        localIdStatus.value = LocalIdStatus.match;
+      }
+
+      Get.snackbar('تنبيه', e.message);
     } catch (e) {
-      Get.snackbar('خطأ', 'حدث خطأ غير متوقع');
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ غير متوقع أثناء التحقق من رقم الهوية',
+      );
     } finally {
       isCheckingId.value = false;
     }
   }
 
   // ---------- Step 2 ----------
+
   void selectHousingStatus(String status) {
     housingStatus.value = status;
     housingError.value = null;
@@ -138,6 +233,7 @@ class FamilyCreationController extends GetxController {
     } else {
       selectedNeeds.add(need);
     }
+
     needsError.value = null;
   }
 
@@ -149,13 +245,13 @@ class FamilyCreationController extends GetxController {
         maxWidth: 1600,
       );
 
-      // User closed the picker
       if (picked == null) return;
 
       final bytes = await File(picked.path).length();
 
       idCardImagePath.value = picked.path;
-      idCardImageSizeKb.value = (bytes / 1024).ceil();
+      idCardImageSizeKb.value =
+          (bytes / 1024).ceil();
     } catch (e) {
       Get.snackbar(
         'خطأ',
@@ -172,11 +268,13 @@ class FamilyCreationController extends GetxController {
   void submitHousingInfo() {
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final isFormValid = housingFormKey.currentState?.validate() ?? false;
+    final isFormValid =
+        housingFormKey.currentState?.validate() ?? false;
 
     housingError.value = housingStatus.value == null
         ? 'يرجى اختيار حالة السكن'
         : null;
+
     needsError.value = selectedNeeds.isEmpty
         ? 'يرجى اختيار احتياج واحد على الأقل'
         : null;
@@ -191,21 +289,23 @@ class FamilyCreationController extends GetxController {
   }
 
   // ---------- Step 3 ----------
+
   void setConfirmed(bool value) {
     isConfirmed.value = value;
   }
 
-  // Back to step 1 (review -> housing -> basic)
   void editBasicInfo() => Get.close(2);
 
-  // Back to step 2
   void editHousingInfo() => Get.back();
 
   Future<void> saveFamily() async {
     if (isSaving.value || isSaved.value) return;
 
     if (!isConfirmed.value) {
-      Get.snackbar('تنبيه', 'يرجى تأكيد التحقق من البيانات مع الأسرة');
+      Get.snackbar(
+        'تنبيه',
+        'يرجى تأكيد التحقق من البيانات مع الأسرة',
+      );
       return;
     }
 
@@ -213,23 +313,102 @@ class FamilyCreationController extends GetxController {
       isSaving.value = true;
       saveError.value = null;
 
-      await _service.addFamily(_buildFamily());
+      // Build with the authenticated user's actual data.
+      final family = await _buildFamily();
+
+      // Remote transaction saves family and ID reservation.
+      await _service.addFamily(family);
 
       isSaved.value = true;
-      Get.snackbar('نجاح', 'تم حفظ الأسرة بنجاح');
+
+      Get.snackbar(
+        'نجاح',
+        'تم حفظ الأسرة بنجاح',
+      );
     } on FamilyCreationException catch (e) {
       saveError.value = e.message;
       Get.snackbar('خطأ', e.message);
     } catch (e) {
-      saveError.value = 'حدث خطأ غير متوقع أثناء حفظ الأسرة';
-      Get.snackbar('خطأ', 'حدث خطأ غير متوقع');
+      saveError.value =
+      'حدث خطأ غير متوقع أثناء حفظ الأسرة';
+
+      Get.snackbar(
+        'خطأ',
+        saveError.value!,
+      );
     } finally {
       isSaving.value = false;
     }
   }
 
-  FamilyModel _buildFamily() {
-    // Create the ID once; retrying must not create a new family ID
+  // Build family using the authenticated user.
+  Future<FamilyModel> _buildFamily() async {
+    final currentUser = _auth.currentUser;
+
+    if (currentUser == null) {
+      throw const FamilyCreationException(
+        'يجب تسجيل الدخول أولاً',
+      );
+    }
+
+    final userDoc = await _firestore
+        .collection('users')
+        .doc(currentUser.uid)
+        .get(const GetOptions(source: Source.server));
+
+    if (!userDoc.exists) {
+      throw const FamilyCreationException(
+        'لم يتم العثور على بيانات المستخدم',
+      );
+    }
+
+    final userData = userDoc.data()!;
+
+    if (userData['status'] != 'active') {
+      throw const FamilyCreationException(
+        'الحساب غير نشط',
+      );
+    }
+
+    final role = userData['role'];
+
+    if (role != 'supervisor' && role != 'field_worker') {
+      throw const FamilyCreationException(
+        'ليس لديك صلاحية لإضافة الأسر',
+      );
+    }
+
+    final organizationId = userData['organizationId'];
+
+    if (organizationId is! String ||
+        organizationId.isEmpty) {
+      throw const FamilyCreationException(
+        'لم يتم تحديد المؤسسة',
+      );
+    }
+
+    String selectedAreaId = areaId;
+
+    if (role == 'field_worker') {
+      final assignedArea = userData['areaId'];
+
+      if (assignedArea is! String ||
+          assignedArea.isEmpty) {
+        throw const FamilyCreationException(
+          'لم يتم تحديد منطقة الموظف',
+        );
+      }
+
+      // Always use the authorized field worker area.
+      selectedAreaId = assignedArea;
+    }
+
+    if (!RegExp(r'^\d{9}$').hasMatch(nationalId)) {
+      throw const FamilyCreationException(
+        'رقم الهوية يجب أن يتكون من 9 أرقام',
+      );
+    }
+
     _draftId ??= const Uuid().v4();
 
     return FamilyModel(
@@ -242,13 +421,14 @@ class FamilyCreationController extends GetxController {
       housingStatus: housingStatus.value!,
       idCardImagePath: idCardImagePath.value,
       needs: orderedNeeds,
-      areaId: areaId,
-      createdBy: DemoContext.employeeId,
-      organizationId: DemoContext.organizationId,
+      areaId: selectedAreaId,
+      createdBy: currentUser.uid,
+      organizationId: organizationId,
     );
   }
 
   // ---------- After saving ----------
+
   void goHome() {
     Get.until((route) => route.isFirst);
   }
@@ -267,15 +447,19 @@ class FamilyCreationController extends GetxController {
 
     housingStatus.value = null;
     selectedNeeds.clear();
+
     housingError.value = null;
     needsError.value = null;
+
     removeIdCardImage();
 
     existingFamily.value = null;
     localIdStatus.value = LocalIdStatus.idle;
+
     saveError.value = null;
     isConfirmed.value = false;
     isSaved.value = false;
+
     _draftId = null;
   }
 
@@ -287,6 +471,7 @@ class FamilyCreationController extends GetxController {
     membersCountController.dispose();
     areaNameController.dispose();
     addressController.dispose();
+
     super.onClose();
   }
 }

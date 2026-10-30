@@ -6,7 +6,6 @@ import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
 import 'package:sijil/features/family_creation/views/family_basic_info_screen.dart';
 import 'package:sijil/features/home/widgets/home_area_row.dart';
-import 'package:sijil/features/home/widgets/home_bottom_nav_bar.dart';
 import 'package:sijil/features/home/widgets/home_quick_actions.dart';
 import 'package:sijil/features/home/widgets/home_stats_grid.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
@@ -69,11 +68,4 @@ class HomeScreen extends StatelessWidget {
     Get.to(() => FamilyBasicInfoScreen());
   }
 
-  void _onTabSelected(HomeTab tab) {
-    // Only the families tab is inside the sprint scope.
-    // The other tabs are visual only for now.
-    if (tab == HomeTab.families) {
-      Get.to(() => const FamilyListScreen());
-    }
-  }
 }

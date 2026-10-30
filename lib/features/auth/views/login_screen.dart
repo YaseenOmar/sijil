@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
@@ -10,10 +11,21 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../controllers/login_controller.dart';
 
-class LoginScreen extends StatelessWidget {
-  LoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
-  final LoginController controller = Get.put(LoginController());
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  late final LoginController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(LoginController());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +34,9 @@ class LoginScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.neutralBackground,
 
-        appBar: CustomAppBar(title: 'أهلاً بك في سِجل',
-        action: Icons.verified_user_outlined,
+        appBar: CustomAppBar(
+          title: 'أهلاً بك في سِجل',
+          action: Icons.verified_user_outlined,
         ),
 
         body: SafeArea(
@@ -32,10 +45,8 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-
                 const SizedBox(height: 40),
 
-                // logo
                 _buildLogo(),
 
                 const SizedBox(height: 8),
@@ -65,7 +76,7 @@ class LoginScreen extends StatelessWidget {
 
                 const Text(
                   'مساحة عمل فريقك لتسجيل الأسر ومتابعة '
-                      'المساعدات والإحالات بكرامة وخصوصية.',
+                  'المساعدات والإحالات بكرامة وخصوصية.',
                   style: TextStyle(
                     fontSize: 15,
                     height: 1.7,
@@ -87,26 +98,23 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 Obx(
-                      () =>
-                      AppTextField(
-                        label: 'كلمة المرور',
-                        isRequired: true,
-                        hint: '••••••••',
-                        controller: controller.passwordController,
-                        obscureText: !controller.isPasswordVisible.value,
-                        suffixIcon: controller.isPasswordVisible.value
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        onSuffixIconPressed: controller
-                            .togglePasswordVisibility,
-                      ),
+                  () => AppTextField(
+                    label: 'كلمة المرور',
+                    isRequired: true,
+                    hint: '••••••••',
+                    controller: controller.passwordController,
+                    obscureText: !controller.isPasswordVisible.value,
+                    suffixIcon: controller.isPasswordVisible.value
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    onSuffixIconPressed: controller.togglePasswordVisibility,
+                  ),
                 ),
-
 
                 const SizedBox(height: 48),
 
                 Obx(
-                      () => AppButton(
+                  () => AppButton(
                     text: 'تسجيل الدخول',
                     icon: Icons.arrow_forward,
                     isLoading: controller.isLoading.value,
@@ -125,10 +133,10 @@ class LoginScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-
                 const AppStatusCard(
                   title: 'الاتصال مطلوب لأول تسجيل دخول',
-                  message: 'بعد تسجيل الدخول بنجاح، يمكنك استخدام جلستك المحفوظة دون اتصال. لا يمكن بدء جلسة جديدة دون إنترنت.',
+                  message:
+                      'بعد تسجيل الدخول بنجاح، يمكنك استخدام جلستك المحفوظة دون اتصال. لا يمكن بدء جلسة جديدة دون إنترنت.',
                   type: AppStatusType.online,
                 ),
 
@@ -147,21 +155,22 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // logo
   Widget _buildLogo() {
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
         width: 64,
         height: 64,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(
-          Icons.menu_book_outlined,
-          color: Colors.white,
-          size: 32,
+        child: SvgPicture.asset(
+          'assets/images/vector.svg',
+          fit: BoxFit.contain,
+          width: 24,
+          height: 26,
         ),
       ),
     );
