@@ -1,17 +1,35 @@
+
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
-import 'package:sijil/features/referrals/models/referral_model.dart';
-import 'package:sijil/features/referrals/utils/referral_formatters.dart';
-import 'package:sijil/features/referrals/widgets/referral_info_card.dart';
 
-// "مسار الإحالة": steps with a vertical line (presentational only)
+import '../models/referral_model.dart';
+import '../utils/referral_formatters.dart';
+import 'referral_info_card.dart';
+
 class ReferralTimeline extends StatelessWidget {
   final List<ReferralStep> steps;
 
-  const ReferralTimeline({super.key, required this.steps});
+  const ReferralTimeline({
+    super.key,
+    required this.steps,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (steps.isEmpty) {
+      return const ReferralInfoCard(
+        children: [
+          Text(
+            'لا توجد مراحل مسجلة لهذه الإحالة بعد.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+
     return ReferralInfoCard(
       children: List.generate(steps.length, (index) {
         final ReferralStep step = steps[index];
@@ -21,7 +39,7 @@ class ReferralTimeline extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Icon + line to the next step
+              // Timeline icon and connecting line
               Column(
                 children: [
                   const Icon(
@@ -29,11 +47,14 @@ class ReferralTimeline extends StatelessWidget {
                     size: 24,
                     color: AppColors.primary,
                   ),
+
                   if (!isLast)
                     Expanded(
                       child: Container(
                         width: 1,
-                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 4,
+                        ),
                         color: AppColors.border,
                       ),
                     ),
@@ -44,9 +65,12 @@ class ReferralTimeline extends StatelessWidget {
 
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
+                  padding: EdgeInsets.only(
+                    bottom: isLast ? 0 : 24,
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
                     children: [
                       Text(
                         step.title,
@@ -56,7 +80,9 @@ class ReferralTimeline extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
+
                       const SizedBox(height: 4),
+
                       Text(
                         formatDateTime(step.at),
                         style: const TextStyle(
@@ -64,14 +90,18 @@ class ReferralTimeline extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        step.actor,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
+
+                      if (step.actor.trim().isNotEmpty &&
+                          step.actor != '-') ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          step.actor,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

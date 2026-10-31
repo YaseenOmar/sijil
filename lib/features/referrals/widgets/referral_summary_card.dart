@@ -1,42 +1,45 @@
+
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/features/referrals/models/referral_model.dart';
+import 'package:sijil/features/referrals/widgets/referral_status_badge.dart';
 
-// Top card of the referral details (green when the service was delivered)
 class ReferralSummaryCard extends StatelessWidget {
   final ReferralModel referral;
 
-  const ReferralSummaryCard({super.key, required this.referral});
+  const ReferralSummaryCard({
+    super.key,
+    required this.referral,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompleted = referral.status == ReferralStatus.completed;
-    final Color labelColor = isCompleted
-        ? AppColors.success
-        : AppColors.textSecondary;
+    final bool isCompleted =
+        referral.status == ReferralStatus.completed;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isCompleted ? AppColors.successBackground : AppColors.surface,
+        color: isCompleted
+            ? AppColors.successBackground
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: isCompleted ? null : Border.all(color: AppColors.border),
+        border: isCompleted
+            ? null
+            : Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            referral.status.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: labelColor,
-            ),
+          // Referral status
+          ReferralStatusBadge(
+            status: referral.status,
           ),
 
           const SizedBox(height: 16),
 
+          // Family name
           Text(
             referral.familyName,
             style: const TextStyle(
@@ -48,9 +51,19 @@ class ReferralSummaryCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          _SummaryRow(label: 'الجهة المستقبلة', value: referral.toOrg),
-          _SummaryRow(label: 'الخدمة', value: referral.service),
+          // Receiving organization
+          _SummaryRow(
+            label: 'الجهة المستقبلة',
+            value: referral.targetOrganizationName,
+          ),
 
+          // Required service
+          _SummaryRow(
+            label: 'الخدمة المطلوبة',
+            value: referral.serviceName,
+          ),
+
+          // Referral reason
           Text(
             'السبب: ${referral.reason}',
             style: const TextStyle(
@@ -69,7 +82,10 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +101,9 @@ class _SummaryRow extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             value,
             style: const TextStyle(

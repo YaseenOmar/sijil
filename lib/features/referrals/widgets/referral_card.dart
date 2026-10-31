@@ -1,11 +1,12 @@
+
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
-import 'package:sijil/features/referrals/models/referral_model.dart';
-import 'package:sijil/features/referrals/utils/referral_formatters.dart';
-import 'package:sijil/features/referrals/widgets/referral_status_badge.dart';
 
-// One referral in the list (presentational only)
+import '../models/referral_model.dart';
+import '../utils/referral_formatters.dart';
+import 'referral_status_badge.dart';
+
 class ReferralCard extends StatelessWidget {
   final ReferralModel referral;
   final bool isIncoming;
@@ -21,14 +22,18 @@ class ReferralCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String route = isIncoming
-        ? 'من ${referral.fromOrg} · ${referral.service}'
-        : '${referral.service} ← ${referral.toOrg}';
+        ? 'من ${referral.sourceOrganizationName} · '
+        '${referral.serviceName}'
+        : '${referral.serviceName} ← '
+        '${referral.targetOrganizationName}';
 
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
+        side: const BorderSide(
+          color: AppColors.border,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -40,10 +45,14 @@ class ReferralCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ReferralStatusBadge(status: referral.status),
+              // Referral status
+              ReferralStatusBadge(
+                status: referral.status,
+              ),
 
               const SizedBox(height: 8),
 
+              // Family name
               Text(
                 referral.familyName,
                 style: const TextStyle(
@@ -55,6 +64,7 @@ class ReferralCard extends StatelessWidget {
 
               const SizedBox(height: 4),
 
+              // Service and organization
               Text(
                 route,
                 style: const TextStyle(
@@ -65,22 +75,26 @@ class ReferralCard extends StatelessWidget {
 
               const SizedBox(height: 4),
 
+              // Referral progress
               Text(
                 referralProgressNote(referral),
                 style: const TextStyle(
                   fontSize: 12,
+                  height: 1.5,
                   color: AppColors.textSecondary,
                 ),
               ),
 
-              if (referral.status == ReferralStatus.completed) ...[
-                const SizedBox(height: 16),
-                AppButton(
-                  text: 'عرض التفاصيل والنتيجة',
-                  type: AppButtonType.secondary,
-                  onPressed: onTap,
-                ),
-              ],
+              const SizedBox(height: 16),
+
+              // Details button
+              AppButton(
+                text: referral.status == ReferralStatus.completed
+                    ? 'عرض التفاصيل والنتيجة'
+                    : 'عرض تفاصيل الإحالة',
+                type: AppButtonType.secondary,
+                onPressed: onTap,
+              ),
             ],
           ),
         ),

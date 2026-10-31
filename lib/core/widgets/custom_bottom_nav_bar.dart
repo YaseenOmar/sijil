@@ -75,8 +75,8 @@ class CustomBottomNavBar extends StatelessWidget {
         }
       },
 
-      destinations: const [
-        NavigationDestination(
+      destinations: [
+        const NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(
             Icons.home,
@@ -84,19 +84,25 @@ class CustomBottomNavBar extends StatelessWidget {
           ),
           label: 'الرئيسية',
         ),
-        NavigationDestination(
+        const NavigationDestination(
           icon: Icon(Icons.groups_outlined),
           label: 'الأسر',
         ),
+
         NavigationDestination(
-          icon: Icon(Icons.volunteer_activism_outlined),
-          label: 'المساعدات',
+          icon: Icon(
+            sessionController.isSupervisor
+                ? Icons.inventory_2_outlined
+                : Icons.volunteer_activism_outlined,
+          ),
+          label: sessionController.isSupervisor ? 'الخدمات' : 'المساعدات',
+
         ),
-        NavigationDestination(
+        const NavigationDestination(
           icon: Icon(Icons.send_outlined),
           label: 'الإحالات',
         ),
-        NavigationDestination(
+        const NavigationDestination(
           icon: Icon(Icons.person_outline),
           label: 'الحساب',
         ),
