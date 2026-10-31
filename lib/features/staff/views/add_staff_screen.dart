@@ -1,24 +1,200 @@
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/app_text_field.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
+
 import 'package:sijil/features/family_creation/widgets/confirm_checkbox_tile.dart';
 import 'package:sijil/features/family_creation/widgets/review_section_card.dart';
-import 'package:sijil/features/staff/constants/staff_options.dart';
+
 import 'package:sijil/features/staff/controllers/add_staff_controller.dart';
 import 'package:sijil/features/staff/utils/staff_validators.dart';
 import 'package:sijil/features/staff/widgets/form_dropdown_field.dart';
-import 'package:sijil/features/staff/widgets/permissions_preview_card.dart';
 
-// Add a staff member (manager only)
-// Open it with: Get.to(() => AddStaffScreen());
-class AddStaffScreen extends StatelessWidget {
-  AddStaffScreen({super.key});
+import '../../auth/controllers/user_session_controller.dart';
 
-  final AddStaffController controller = Get.put(AddStaffController());
+class AddStaffScreen extends StatefulWidget {
+  const AddStaffScreen({super.key});
+
+  @override
+  State<AddStaffScreen> createState() =>
+      _AddStaffScreenState();
+}
+
+class _AddStaffScreenState extends State<AddStaffScreen> {
+  late final AddStaffController controller;
+
+  final UserSessionController session =
+  Get.find<UserSessionController>();
+
+  // ID -> Name
+  Map<String, String> areaNames = {};
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = Get.put(AddStaffController());
+
+    // Current invitation rules support
+    // field workers only.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        controller.selectRole('عامل ميداني');
+      }
+    });
+  }
+
+  String get organizationId =>
+      session.organizationId.value;
+
+  // --------------------------------------
+  // Areas from Firestore
+  // --------------------------------------
+
+  Widget _buildAreasDropdown() {
+    if (organizationId.isEmpty) {
+      return const AppStatusCard(
+        title: 'تعذر تحديد المؤسسة',
+        message: 'يرجى تسجيل الدخول مجددًا.',
+        type: AppStatusType.error,
+      );
+    }
+
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('areas')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const AppStatusCard(
+            title: 'خطأ في تحميل المناطق',
+            message:
+            'تعذر قراءة مناطق المؤسسة. تحقق من الصلاحيات.',
+            type: AppStatusType.error,
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final areaDocs = snapshot.data!.docs;
+
+        areaNames = {
+          for (final doc in areaDocs)
+            doc.id: (
+                doc.data()['name'] is String &&
+                    (doc.data()['name'] as String)
+                        .trim()
+                        .isNotEmpty
+            )
+                ? doc.data()['name'] as String
+                : doc.id,
+        };
+
+        if (areaDocs.isEmpty) {
+          return const AppStatusCard(
+            title: 'لا توجد مناطق',
+            message:
+            'يجب إضافة منطقة للمؤسسة قبل إضافة موظف.',
+            type: AppStatusType.info,
+          );
+        }
+
+        return Obx(() {
+          final selectedId = controller.areaId.value;
+
+          final validValue =
+          areaNames.containsKey(selectedId)
+              ? selectedId
+              : null;
+
+          return FormDropdownField(
+            label: 'المنطقة المكلف بها',
+            hint: 'اختر المنطقة',
+            isRequired: true,
+            value: validValue,
+            items: areaDocs.map((doc) {
+              return DropdownMenuItem<String>(
+                value: doc.id,
+                child: Text(
+                  areaNames[doc.id] ?? doc.id,
+                ),
+              );
+            }).toList(),
+            onChanged: controller.selectArea,
+            validator: StaffValidators.area,
+          );
+        });
+      },
+    );
+  }
+
+  // --------------------------------------
+  // Confirm and review
+  // --------------------------------------
+
+  void _reviewBeforeAdding() {
+    if (!session.isSupervisor) {
+      Get.snackbar(
+        'لا توجد صلاحية',
+        'إضافة الموظفين متاحة للمشرف فقط.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (organizationId.isEmpty) {
+      Get.snackbar(
+        'خطأ',
+        'لم يتم تحديد المؤسسة.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (!areaNames.containsKey(
+      controller.areaId.value,
+    )) {
+      Get.snackbar(
+        'تنبيه',
+        'يرجى اختيار منطقة موجودة في المؤسسة.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (controller.role.value != 'عامل ميداني') {
+      Get.snackbar(
+        'تنبيه',
+        'إضافة الدعوات متاحة للموظفين الميدانيين فقط.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (controller.validateForReview()) {
+      _showReviewSheet();
+    }
+  }
+
+  // --------------------------------------
+  // Screen
+  // --------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -26,28 +202,40 @@ class AddStaffScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        onTap: () =>
+            FocusManager.instance.primaryFocus
+                ?.unfocus(),
         child: Scaffold(
-          backgroundColor: AppColors.neutralBackground,
+          backgroundColor:
+          AppColors.neutralBackground,
+
           appBar: CustomAppBar(
             title: 'إضافة موظف',
-            subtitle: 'خالد عمر . مدير جمعية أمان',
+            subtitle:
+            '${session.fullName.value} • ${session.organizationName.value}',
             leading: Icons.arrow_back,
             onLeadingPressed: () => Get.back(),
           ),
 
-          // SingleChildScrollView prevents bottom overflow when keyboard opens
           body: SafeArea(
             child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              keyboardDismissBehavior:
+              ScrollViewKeyboardDismissBehavior
+                  .onDrag,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
+              ),
+
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                CrossAxisAlignment.stretch,
                 children: [
                   const AppStatusCard(
-                    title: 'إضافة حساب عمل لجهتك فقط',
-                    message: 'تحقق من اسم الموظف وبريد العمل ونطاق الوصول. لا تُنشأ صلاحيات لحسابك من هذه الصفحة، وتُوثَّق التغييرات باسم المدير.',
-                    type: AppStatusType.success,
+                    title: 'إضافة موظف إلى مؤسستك',
+                    message:
+                    'سيتم إنشاء دعوة معلقة للموظف. لا يُنشأ حساب المستخدم إلا بعد قبول الدعوة والتحقق من البريد الإلكتروني.',
+                    type: AppStatusType.info,
                   ),
 
                   const SizedBox(height: 24),
@@ -55,48 +243,68 @@ class AddStaffScreen extends StatelessWidget {
                   Form(
                     key: controller.formKey,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
                       children: [
+                        // ----------------------
+                        // Full name
+                        // ----------------------
+
                         AppTextField(
                           label: 'الاسم الكامل',
-                          hint: 'مثال: هبة خالد',
-                          controller: controller.fullNameController,
+                          hint: 'أدخل اسم الموظف',
+                          controller:
+                          controller.fullNameController,
                           isRequired: true,
-                          onChanged: controller.onNameChanged,
-                          validator: StaffValidators.fullName,
+                          onChanged:
+                          controller.onNameChanged,
+                          validator:
+                          StaffValidators.fullName,
                         ),
 
                         const SizedBox(height: 16),
+
+                        // ----------------------
+                        // Email
+                        // ----------------------
 
                         AppTextField(
-                          label: 'البريد الإلكتروني للعمل',
-                          hint: 'name@alaman.org',
-                          helperText:
-                              'بريد توضيحي؛ تراجع صحته قبل إرسال الدعوة.',
-                          controller: controller.emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          label:
+                          'البريد الإلكتروني',
+                          hint: 'name@example.com',
+                          controller:
+                          controller.emailController,
+                          keyboardType:
+                          TextInputType.emailAddress,
                           isRequired: true,
-                          validator: StaffValidators.email,
+                          helperText:
+                          'سيستخدم الموظف هذا البريد لقبول الدعوة.',
+                          validator:
+                          StaffValidators.email,
                         ),
 
                         const SizedBox(height: 16),
 
-                        // Role (single select)
+                        // ----------------------
+                        // Role
+                        // ----------------------
+
                         Obx(
-                          () => FormDropdownField(
+                              () => FormDropdownField(
                             label: 'الدور الوظيفي',
                             hint: 'اختر الدور',
-                            helperText: 'الأدوار الحالية: عامل ميداني، مشرف، مدير الجهة. لا يتاح دور إشراف الشبكة.',
                             isRequired: true,
                             value: controller.role.value,
-                            items: StaffOptions.roleNames
-                                .map(
-                                  (role) => DropdownMenuItem(
-                                    value: role,
-                                    child: Text(role),
-                                  ),
-                                )
-                                .toList(),
+                            items: const [
+                              DropdownMenuItem<String>(
+                                value: 'عامل ميداني',
+                                child: Text('عامل ميداني'),
+                              ),
+                              DropdownMenuItem<String>(
+                                value: 'مشرف',
+                                child: Text('مشرف'),
+                              ),
+                            ],
                             onChanged: controller.selectRole,
                             validator: StaffValidators.role,
                           ),
@@ -104,35 +312,11 @@ class AddStaffScreen extends StatelessWidget {
 
                         const SizedBox(height: 16),
 
-                        // Area (single select)
-                        Obx(
-                          () => FormDropdownField(
-                            label: 'المنطقة المكلف بها',
-                            hint: 'اختر المنطقة',
-                            isRequired: true,
-                            value: controller.areaId.value,
-                            items: StaffOptions.areaIds
-                                .map(
-                                  (areaId) => DropdownMenuItem(
-                                    value: areaId,
-                                    child: Text(StaffOptions.areaName(areaId)),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: controller.selectArea,
-                            validator: StaffValidators.area,
-                          ),
-                        ),
+                        // ----------------------
+                        // Organization areas
+                        // ----------------------
 
-                        const SizedBox(height: 16),
-
-                        // account status
-                        const AppStatusCard(
-                          title: 'حالة الحساب',
-                          message:
-                          'سيبقى الحساب معلّقًا حتى يقبل الموظف الدعوة ويتحقق من بريده الإلكتروني.',
-                          type: AppStatusType.online,
-                        ),
+                        _buildAreasDropdown(),
 
                       ],
                     ),
@@ -140,61 +324,53 @@ class AddStaffScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Updates while the user types or selects
-                  Obx(
-                    () => PermissionsPreviewCard(
-                      name: controller.fullName.value,
-                      areaName: controller.areaName,
-                      role: controller.role.value,
-                    ),
-                  ),
 
-                  const SizedBox(height: 16),
+                  // ----------------------
+                  // Confirmation
+                  // ----------------------
 
                   Obx(
-                    () => ConfirmCheckboxTile(
-                      label: 'راجعت هوية الموظف والبريد والدور والمنطقة',
-                      value: controller.isConfirmed.value,
-                      onChanged: controller.setConfirmed,
+                        () => ConfirmCheckboxTile(
+                      label:
+                      'راجعت بيانات الموظف والبريد الإلكتروني والمنطقة',
+                      value:
+                      controller.isConfirmed.value,
+                      onChanged:
+                      controller.setConfirmed,
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
                   const AppStatusCard(
-                    title: 'الحفظ يتطلب تأكيد الصلاحيات',
-                    message: 'يظهر ملخص للصلاحيات قبل الإضافة. لا نعرض «دعوة مرسلة» إلا بعد تأكيد الشبكة؛ عند غياب التأكيد تبقى الدعوة معلّقة وغير مفعّلة.',
-                    type: AppStatusType.offline,
+                    title: 'مراجعة قبل الحفظ',
+                    message:
+                    'بعد تأكيد البيانات سيتم تسجيل دعوة معلقة. تفعيل الحساب مرتبط بقبول الموظف للدعوة.',
+                    type: AppStatusType.info,
                   ),
 
                   const SizedBox(height: 24),
 
+                  // ----------------------
+                  // Review button
+                  // ----------------------
+
                   AppButton(
-                    text: 'مراجعة الصلاحيات وتأكيد الإضافة',
-                    onPressed: () {
-                      if (controller.validateForReview()) {
-                        _showReviewSheet();
-                      }
-                    },
+                    text:
+                    'مراجعة البيانات وتأكيد الإضافة',
+                    onPressed: _reviewBeforeAdding,
                   ),
 
                   const SizedBox(height: 16),
 
+                  // ----------------------
+                  // Cancel
+                  // ----------------------
+
                   AppButton(
-                    text: 'إلغاء والعودة إلى الفريق والخدمات',
+                    text: 'إلغاء والعودة',
                     type: AppButtonType.secondary,
                     onPressed: () => Get.back(),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'تغيير الدور لاحقاً يحتاج تأكيد المدير وتسجيله في التدقيق؛ لا تصعيد ذاتي للصلاحيات.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: AppColors.textSecondary,
-                    ),
                   ),
                 ],
               ),
@@ -205,7 +381,10 @@ class AddStaffScreen extends StatelessWidget {
     );
   }
 
-  // Permissions summary before adding the employee
+  // --------------------------------------
+  // Review bottom sheet
+  // --------------------------------------
+
   void _showReviewSheet() {
     Get.bottomSheet(
       Directionality(
@@ -215,10 +394,11 @@ class AddStaffScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+              CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'مراجعة الصلاحيات',
+                  'مراجعة بيانات الموظف',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -229,38 +409,40 @@ class AddStaffScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 ReviewSectionCard(
-                  title: 'بيانات الموظف',
+                  title: 'بيانات الدعوة',
                   children: [
                     ReviewRow(
                       label: 'الاسم الكامل',
-                      value: controller.fullName.value,
+                      value: controller
+                          .fullName.value,
                     ),
                     ReviewRow(
-                      label: 'البريد الإلكتروني',
+                      label:
+                      'البريد الإلكتروني',
                       value: controller.email,
-                      valueDirection: TextDirection.ltr,
+                      valueDirection:
+                      TextDirection.ltr,
+                    ),
+                    ReviewRow(
+                      label: 'المؤسسة',
+                      value: session
+                          .organizationName.value,
                     ),
                     ReviewRow(
                       label: 'الدور الوظيفي',
-                      value: controller.role.value ?? '-',
+                      value: 'عامل ميداني',
                     ),
                     ReviewRow(
                       label: 'المنطقة',
-                      value: controller.areaName ?? '-',
+                      value: areaNames[
+                      controller.areaId.value] ??
+                          '-',
                     ),
-                    ReviewRow(
-                      label: 'حالة الحساب',
-                      value: controller.accountStatus.value ?? '-',
+                    const ReviewRow(
+                      label: 'حالة الدعوة',
+                      value: 'بانتظار القبول',
                     ),
                   ],
-                ),
-
-                const SizedBox(height: 16),
-
-                PermissionsPreviewCard(
-                  name: controller.fullName.value,
-                  areaName: controller.areaName,
-                  role: controller.role.value,
                 ),
 
                 const SizedBox(height: 24),
@@ -269,18 +451,19 @@ class AddStaffScreen extends StatelessWidget {
                       () => AppButton(
                     text: 'تأكيد الإضافة',
                     icon: Icons.check,
-                    isLoading: controller.isLoading.value,
-                    onPressed: controller.isLoading.value
+                    isLoading:
+                    controller.isLoading.value,
+                    onPressed:
+                    controller.isLoading.value
                         ? null
                         : controller.confirmAdd,
                   ),
                 ),
 
-
                 const SizedBox(height: 16),
 
                 AppButton(
-                  text: 'رجوع للتعديل',
+                  text: 'رجوع',
                   type: AppButtonType.secondary,
                   onPressed: () => Get.back(),
                 ),
@@ -289,10 +472,13 @@ class AddStaffScreen extends StatelessWidget {
           ),
         ),
       ),
-      backgroundColor: AppColors.neutralBackground,
+      backgroundColor:
+      AppColors.neutralBackground,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(16),
+        ),
       ),
     );
   }

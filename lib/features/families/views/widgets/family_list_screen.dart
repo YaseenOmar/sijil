@@ -5,7 +5,7 @@ import 'package:sijil/features/families/controllers/family_list_controller.dart'
 import 'package:sijil/features/families/views/widgets/family_card.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_bottom_nav_bar.dart';
-import 'family_detail_screen.dart';
+import 'family_details_screen.dart';
 
 class FamilyListScreen extends StatelessWidget {
   const FamilyListScreen({super.key});
@@ -193,7 +193,7 @@ class FamilyListScreen extends StatelessWidget {
                       return FamilyCard(
                         family: family,
                         onTap: () {
-                          Get.to(() => FamilyDetailScreen(family: family));
+                          Get.to(() => FamilyDetailsScreen(family: family));
                         },
                       );
                     },

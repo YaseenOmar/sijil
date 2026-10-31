@@ -1,38 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sijil/features/staff/views/staff_section.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
-import '../../staff/views/add_staff_screen.dart';
+import '../../auth/controllers/user_session_controller.dart';
+import 'add_staff_screen.dart';
 import 'edit_staff_screen.dart';
 
 class TeamAndServicesScreen extends StatelessWidget {
-  const TeamAndServicesScreen({super.key});
+  TeamAndServicesScreen({super.key});
+  final session = Get.find<UserSessionController>();
 
   @override
   Widget build(BuildContext context) {
-    // قائمة الموظفين المعروضة حسب التصميم
-    final staffList = [
-      {
-        'name': 'نورا إبراهيم',
-        'role': 'مشرفة • جميع مناطق الجهة',
-        'status': 'نشطة',
-        'statusColor': const Color(0xFFE6F4EA),
-        'textColor': const Color(0xFF137333),
-      },
-      {
-        'name': 'أحمد سالم',
-        'role': 'عامل ميداني • حي النور',
-        'status': 'نشط',
-        'statusColor': const Color(0xFFE6F4EA),
-        'textColor': const Color(0xFF137333),
-      },
-      {
-        'name': 'ليلى منصور',
-        'role': 'عاملة ميدانية • حي السلام',
-        'status': 'نشطة',
-        'statusColor': const Color(0xFFE6F4EA),
-        'textColor': const Color(0xFF137333),
-      },
-    ];
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -40,7 +20,7 @@ class TeamAndServicesScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFF9FAFB),
         appBar: CustomAppBar(
           title: 'الفريق والخدمات',
-          subtitle: 'خالد عمر • مدير جمعية الأمان',
+          subtitle: '${session.fullName.value} . ${session.organizationName.value}',
           leading: Icons.arrow_back,
           onLeadingPressed: () => Get.back(),
         ),
@@ -95,130 +75,13 @@ class TeamAndServicesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'الفريق • ٣ موظفين',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A202C),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      // الانتقال إلى شاشة إضافة موظف
-                      Get.to(() => AddStaffScreen());;
-                    },
-                    icon: const Icon(
-                      Icons.add,
-                      size: 16,
-                      color: Color(0xFF135354),
-                    ),
-                    label: const Text(
-                      'إضافة موظف',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF135354),
-                      ),
-                    ),
-                  ),
-                ],
+              Obx(
+                    () => StaffSection(
+                  organizationId: session.organizationId.value,
+                  currentUserId: session.uid.value,
+                ),
               ),
-              const SizedBox(height: 8),
 
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: staffList.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final staff = staffList[index];
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      final roleParts = (staff['role'] as String).split(' • ');
-                      final role = roleParts.isNotEmpty
-                          ? roleParts[0].trim()
-                          : 'عامل ميداني';
-                      final area = roleParts.length > 1
-                          ? roleParts[1].trim()
-                          : 'حي النور';
-
-                      Get.to(
-                        () => EditStaffScreen(
-                          staffName: staff['name'] as String,
-                          initialRole: role,
-                          initialArea: area,
-                          initialStatus: staff['status'] as String,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  staff['name'] as String,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1A202C),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  staff['role'] as String,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: staff['statusColor'] as Color,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              staff['status'] as String,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: staff['textColor'] as Color,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
               const SizedBox(height: 24),
 
               const Text(
@@ -412,3 +275,5 @@ class TeamAndServicesScreen extends StatelessWidget {
     );
   }
 }
+
+

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
-import 'create_assistance_screen.dart';
+import 'assign_assistance_screen.dart';
 
 class AssistanceHistoryScreen extends StatelessWidget {
   const AssistanceHistoryScreen({super.key});

@@ -1,7 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 
-// Label + dropdown with the same look as AppTextField
 class FormDropdownField extends StatelessWidget {
   final String label;
   final bool isRequired;
@@ -9,7 +9,7 @@ class FormDropdownField extends StatelessWidget {
   final String? helperText;
   final String? value;
   final List<DropdownMenuItem<String>> items;
-  final ValueChanged<String?> onChanged;
+  final ValueChanged<String?>? onChanged;
   final String? Function(String?)? validator;
 
   const FormDropdownField({
@@ -26,6 +26,14 @@ class FormDropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure selected value exists in the available items.
+    // Useful when items are loaded asynchronously from Firestore.
+    final bool valueExists = value != null &&
+        items.any((item) => item.value == value);
+
+    final String? selectedValue =
+    valueExists ? value : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -33,6 +41,7 @@ class FormDropdownField extends StatelessWidget {
           isRequired ? '$label *' : label,
           style: const TextStyle(
             fontSize: 14,
+            fontFamily: 'Cairo',
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
@@ -41,30 +50,50 @@ class FormDropdownField extends StatelessWidget {
         const SizedBox(height: 8),
 
         DropdownButtonFormField<String>(
-          initialValue: value,
+          // Rebuild field state when external value changes.
+          key: ValueKey<String?>(
+            selectedValue,
+          ),
+
+          initialValue: selectedValue,
           items: items,
           onChanged: onChanged,
           validator: validator,
+
           isExpanded: true,
+
           icon: const Icon(
             Icons.keyboard_arrow_down,
             color: AppColors.textSecondary,
           ),
+
           dropdownColor: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+
+          style: const TextStyle(
+            fontSize: 15,
+            fontFamily: 'Cairo',
+            color: AppColors.textPrimary,
+          ),
+
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            hintStyle: const TextStyle(
+              color: AppColors.textSecondary,
+            ),
+
             helperText: helperText,
             helperMaxLines: 3,
             errorMaxLines: 3,
+
             filled: true,
             fillColor: AppColors.surface,
+
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,
             ),
+
             border: _border(AppColors.border),
             enabledBorder: _border(AppColors.border),
             focusedBorder: _border(AppColors.primary),
