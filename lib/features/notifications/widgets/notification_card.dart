@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/features/notifications/models/notification_model.dart';
 
-// كارد إشعار واحد: لونه وشارته بيتغيروا حسب حالة القراءة
+// كارد إشعار واحد: لونه وشارته بيتغيروا حسب حالة القراءة ونوع الإشعار
 class NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback? onTap;
@@ -15,21 +15,24 @@ class NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isRead = notification.isRead;
+    // غير مقروء: خلفية خضراء فاتحة | مقروء: أبيض
+    // إشعار "للمشرف فقط" بيضل أبيض حتى لو غير مقروء (مثل التصميم)
+    final bool isHighlighted =
+        !notification.isRead &&
+        notification.type != NotificationType.supervisorOnly;
 
     return Material(
-      // غير مقروء: خلفية خضراء فاتحة | مقروء: أبيض
-      color: isRead ? AppColors.surface : AppColors.successBackground,
+      color: isHighlighted ? AppColors.successBackground : AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isRead ? AppColors.border : AppColors.successBackground,
+          color: isHighlighted ? AppColors.successBackground : AppColors.border,
         ),
       ),
       child: InkWell(
         onTap: onTap,
         customBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -65,7 +68,7 @@ class NotificationCard extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // الوقت
               Text(
@@ -83,7 +86,7 @@ class NotificationCard extends StatelessWidget {
   }
 }
 
-// الشارة الصغيرة اللي فوق الكارد
+// الشارة الصغيرة اللي فوق الكارد (لون + نص، مش لون فقط)
 class _StatusBadge extends StatelessWidget {
   final NotificationModel notification;
 
@@ -91,9 +94,9 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late final String label;
-    late final Color textColor;
-    late final Color background;
+    final String label;
+    final Color textColor;
+    final Color background;
 
     if (notification.isRead) {
       label = 'مقروء';
@@ -114,7 +117,7 @@ class _StatusBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
