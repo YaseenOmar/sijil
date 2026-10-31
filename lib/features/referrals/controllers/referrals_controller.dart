@@ -1,36 +1,70 @@
-import 'package:get/get.dart';
-import 'package:sijil/features/referrals/constants/referral_demo_data.dart';
-import 'package:sijil/features/referrals/constants/referral_options.dart';
-import 'package:sijil/features/referrals/models/referral_model.dart';
-import 'package:sijil/features/referrals/views/create_referral_screen.dart';
-import 'package:sijil/features/referrals/views/incoming_referral_review_screen.dart';
-import 'package:sijil/features/referrals/views/referral_details_screen.dart';
 
-// Controller of the referrals list (outgoing / incoming tabs + status filters)
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get/get.dart';
+
+import '../constants/referral_options.dart';
+import '../models/referral_model.dart';
+import '../repositories/referral_repository.dart';
+import '../views/create_referral_screen.dart';
+import '../views/incoming_referral_review_screen.dart';
+import '../views/referral_details_screen.dart';
+
 class ReferralsController extends GetxController {
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final ReferralRepository _repository =
+  ReferralRepository();
+
   // 0 = outgoing, 1 = incoming
   final tabIndex = 0.obs;
 
-  // Outgoing filter
-  final selectedFilter = ReferralOptions.filterAll.obs;
+  // Filters
+  final selectedFilter =
+      ReferralOptions.filterAll.obs;
 
-  // Incoming filter (supervisor view)
-  final selectedIncomingFilter = ReferralOptions.filterWaitingDecision.obs;
+  final selectedIncomingFilter =
+      ReferralOptions.filterWaitingDecision.obs;
 
-  // Only the latest incoming referral is shown until the supervisor asks for the rest
+  // Show more incoming referrals
   final showAllIncoming = false.obs;
 
+  // Referral lists
   final outgoing = <ReferralModel>[].obs;
   final incoming = <ReferralModel>[].obs;
 
-  // ---------- UI states ----------
-  final isLoading = false.obs;
+  // UI states
+  final isLoading = true.obs;
   final loadError = RxnString();
 
-  // ---------- Connection ----------
-  // TODO: connect them with the connectivity and sync services
-  final isOnline = true.obs;
-  final lastSyncAt = ReferralDemoData.lastSyncAt.obs;
+  // Separate loading flags for both streams
+  final isLoadingOutgoing = true.obs;
+  final isLoadingIncoming = false.obs;
+
+  // Current user
+  final role = ''.obs;
+  final organizationId = ''.obs;
+  final areaId = ''.obs;
+
+  bool get isSupervisor =>
+      role.value == 'supervisor';
+
+  bool get isFieldWorker =>
+      role.value == 'field_worker';
+
+  // Firestore listeners
+  StreamSubscription<List<ReferralModel>>?
+  _outgoingSubscription;
+
+  StreamSubscription<List<ReferralModel>>?
+  _incomingSubscription;
+
+  int _loadVersion = 0;
 
   @override
   void onInit() {
@@ -38,122 +72,322 @@ class ReferralsController extends GetxController {
     loadReferrals();
   }
 
-  // Referrals of the selected tab after applying the status filter
-  List<ReferralModel> get visibleReferrals {
-    if (tabIndex.value == 1) return filteredIncoming;
+  // ---------------- Loading ----------------
 
+  Future<void> loadReferrals() async {
+    final int version = ++_loadVersion;
+
+    await _cancelSubscriptions();
+
+    if (isClosed || version != _loadVersion) return;
+
+    isLoading.value = true;
+    isLoadingOutgoing.value = true;
+    isLoadingIncoming.value = false;
+    loadError.value = null;
+
+    outgoing.clear();
+    incoming.clear();
+
+    try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        throw Exception('المستخدم غير مسجل الدخول');
+      }
+
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (isClosed || version != _loadVersion) return;
+
+      if (!userDoc.exists) {
+        throw Exception('بيانات المستخدم غير موجودة');
+      }
+
+      final data = userDoc.data()!;
+
+      if (data['status'] != 'active') {
+        throw Exception('حساب المستخدم غير فعال');
+      }
+
+      final currentRole = data['role'] as String?;
+      final currentOrg =
+      data['organizationId'] as String?;
+      final currentArea = data['areaId'] as String?;
+
+      if (currentOrg == null ||
+          !['supervisor', 'field_worker']
+              .contains(currentRole)) {
+        throw Exception('بيانات صلاحيات المستخدم غير مكتملة');
+      }
+
+      if (currentRole == 'field_worker' &&
+          (currentArea == null || currentArea.isEmpty)) {
+        throw Exception('منطقة الموظف غير محددة');
+      }
+
+      role.value = currentRole!;
+      organizationId.value = currentOrg;
+      areaId.value = currentArea ?? '';
+
+      if (!isSupervisor) {
+        tabIndex.value = 0;
+      }
+
+      // Outgoing referrals
+      _outgoingSubscription =
+          _repository.watchOutgoing(
+            organizationId: currentOrg,
+            areaId: isFieldWorker ? currentArea : null,
+          ).listen(
+                (items) {
+              if (isClosed || version != _loadVersion) return;
+
+              outgoing.assignAll(items);
+              isLoadingOutgoing.value = false;
+              _updateLoadingState();
+            },
+            onError: (Object error) {
+              if (isClosed || version != _loadVersion) return;
+
+              isLoadingOutgoing.value = false;
+              loadError.value = _errorMessage(error);
+              _updateLoadingState();
+            },
+          );
+
+      // Incoming referrals: supervisor only
+      if (isSupervisor) {
+        isLoadingIncoming.value = true;
+
+        _incomingSubscription =
+            _repository.watchIncoming(
+              organizationId: currentOrg,
+            ).listen(
+                  (items) {
+                if (isClosed || version != _loadVersion) {
+                  return;
+                }
+
+                incoming.assignAll(items);
+                isLoadingIncoming.value = false;
+                _updateLoadingState();
+              },
+              onError: (Object error) {
+                if (isClosed || version != _loadVersion) {
+                  return;
+                }
+
+                isLoadingIncoming.value = false;
+                loadError.value = _errorMessage(error);
+                _updateLoadingState();
+              },
+            );
+      }
+
+      _updateLoadingState();
+    } catch (e) {
+      if (isClosed || version != _loadVersion) return;
+
+      loadError.value = _errorMessage(e);
+      isLoadingOutgoing.value = false;
+      isLoadingIncoming.value = false;
+      _updateLoadingState();
+    }
+  }
+
+  void _updateLoadingState() {
+    isLoading.value =
+        isLoadingOutgoing.value ||
+            isLoadingIncoming.value;
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    await _outgoingSubscription?.cancel();
+    await _incomingSubscription?.cancel();
+
+    _outgoingSubscription = null;
+    _incomingSubscription = null;
+  }
+
+  // ---------------- Outgoing Filters ----------------
+
+  List<ReferralModel> get visibleReferrals {
     return outgoing.where(_matchesFilter).toList();
   }
 
-  // Incoming referrals after the status filter, latest received first
-  List<ReferralModel> get filteredIncoming {
-    final List<ReferralModel> items = incoming
-        .where(_matchesIncomingFilter)
-        .toList();
-
-    items.sort((a, b) => _receivedTime(b).compareTo(_receivedTime(a)));
-
-    return items;
-  }
-
-  // Incoming referrals shown on the screen
-  List<ReferralModel> get displayedIncoming {
-    final List<ReferralModel> items = filteredIncoming;
-
-    if (showAllIncoming.value || items.length <= 1) return items;
-
-    return items.take(1).toList();
-  }
-
-  int get hiddenIncomingCount =>
-      filteredIncoming.length - displayedIncoming.length;
-
-  DateTime _receivedTime(ReferralModel referral) =>
-      referral.receivedAt ?? referral.createdAt;
-
   bool _matchesFilter(ReferralModel referral) {
     switch (selectedFilter.value) {
-      case ReferralOptions.filterInProgress:
-        return referral.status == ReferralStatus.sent ||
-            referral.status == ReferralStatus.received ||
-            referral.status == ReferralStatus.underReview;
       case ReferralOptions.filterPending:
-        return referral.status == ReferralStatus.pendingSend;
+        return referral.status ==
+            ReferralStatus.pendingSourceApproval;
+
+      case ReferralOptions.filterInProgress:
+        return [
+          ReferralStatus.pendingTargetApproval,
+          ReferralStatus.accepted,
+          ReferralStatus.inProgress,
+        ].contains(referral.status);
+
       case ReferralOptions.filterCompleted:
-        return referral.status == ReferralStatus.completed;
+        return referral.status ==
+            ReferralStatus.completed;
+
+      case ReferralOptions.filterOutgoingRejected:
+        return referral.status ==
+            ReferralStatus.rejectedBySource ||
+            referral.status ==
+                ReferralStatus.rejectedByTarget;
+
       default:
         return true;
     }
+  }
+
+  // ---------------- Incoming Filters ----------------
+
+  List<ReferralModel> get filteredIncoming {
+    final items = incoming
+        .where(_matchesIncomingFilter)
+        .toList();
+
+    items.sort(
+          (a, b) => b.createdAt.compareTo(a.createdAt),
+    );
+
+    return items;
   }
 
   bool _matchesIncomingFilter(ReferralModel referral) {
     switch (selectedIncomingFilter.value) {
       case ReferralOptions.filterWaitingDecision:
-        return referral.status == ReferralStatus.received;
+        return referral.status ==
+            ReferralStatus.pendingTargetApproval;
+
       case ReferralOptions.filterUnderReview:
-        return referral.status == ReferralStatus.underReview;
+        return referral.status ==
+            ReferralStatus.accepted ||
+            referral.status ==
+                ReferralStatus.inProgress;
+
       case ReferralOptions.filterServiceDone:
-        return referral.status == ReferralStatus.completed;
+        return referral.status ==
+            ReferralStatus.completed;
+
       case ReferralOptions.filterRejected:
-        return referral.status == ReferralStatus.rejected;
+        return referral.status ==
+            ReferralStatus.rejectedByTarget;
+
       default:
         return true;
     }
   }
 
-  void loadReferrals() {
-    try {
-      isLoading.value = true;
-      loadError.value = null;
+  List<ReferralModel> get displayedIncoming {
+    final items = filteredIncoming;
 
-      // Temporary: demo data until referrals come from Firestore
-      outgoing.assignAll(ReferralDemoData.outgoing);
-      incoming.assignAll(ReferralDemoData.incoming);
-    } catch (e) {
-      loadError.value = 'تعذر تحميل الإحالات، يرجى المحاولة مرة أخرى';
-    } finally {
-      isLoading.value = false;
+    if (showAllIncoming.value || items.length <= 1) {
+      return items;
+    }
+
+    return items.take(1).toList();
+  }
+
+  int get hiddenIncomingCount =>
+      filteredIncoming.length -
+          displayedIncoming.length;
+
+  // ---------------- UI Actions ----------------
+
+  void selectTab(int index) {
+    if (index == 1 && !isSupervisor) {
+      return;
+    }
+
+    if (index == 0 || index == 1) {
+      tabIndex.value = index;
     }
   }
 
-  void selectTab(int index) => tabIndex.value = index;
+  void selectFilter(String filter) {
+    selectedFilter.value = filter;
+  }
 
-  void selectFilter(String filter) => selectedFilter.value = filter;
-
-  void resetFilter() => selectedFilter.value = ReferralOptions.filterAll;
+  void resetFilter() {
+    selectedFilter.value =
+        ReferralOptions.filterAll;
+  }
 
   void selectIncomingFilter(String filter) {
     selectedIncomingFilter.value = filter;
     showAllIncoming.value = false;
   }
 
-  void showRestOfIncoming() => showAllIncoming.value = true;
-
-  // Called after saving a new referral
-  void addReferral(ReferralModel referral) {
-    outgoing.insert(0, referral);
+  void showRestOfIncoming() {
+    showAllIncoming.value = true;
   }
 
-  // Called after the receiving organization decides
-  void updateReferral(ReferralModel updated) {
-    final inIndex = incoming.indexWhere((item) => item.id == updated.id);
-    if (inIndex != -1) incoming[inIndex] = updated;
+  // ---------------- Navigation ----------------
 
-    final outIndex = outgoing.indexWhere((item) => item.id == updated.id);
-    if (outIndex != -1) outgoing[outIndex] = updated;
-  }
-
-  // ---------- Navigation ----------
   void openReferral(ReferralModel referral) {
-    if (tabIndex.value == 1) {
-      Get.to(() => IncomingReferralReviewScreen(referral: referral));
+    if (tabIndex.value == 1 && isSupervisor) {
+      Get.to(
+            () => IncomingReferralReviewScreen(
+          referral: referral,
+        ),
+      );
     } else {
-      Get.to(() => ReferralDetailsScreen(referral: referral));
+      Get.to(
+            () => ReferralDetailsScreen(
+          referral: referral,
+        ),
+      );
     }
   }
 
-  void openCreateReferral() => Get.to(() => CreateReferralScreen());
+  void openCreateReferral() {
+    Get.to(() => CreateReferralScreen());
+  }
 
-  // TODO: open the supervisor dashboard when it is ready
-  void backToSupervisorDashboard() => Get.back();
+  void backToSupervisorDashboard() {
+    Get.back();
+  }
+
+  // ---------------- Error Handling ----------------
+
+  String _errorMessage(Object error) {
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'permission-denied':
+          return 'لا تملك صلاحية لعرض هذه الإحالات';
+
+        case 'unavailable':
+          return 'تعذر الاتصال بخدمة Firebase';
+
+        case 'failed-precondition':
+          return 'قد يكون استعلام Firestore بحاجة إلى Index';
+
+        default:
+          return error.message ??
+              'تعذر تحميل الإحالات';
+      }
+    }
+
+    return error.toString().replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
+  @override
+  void onClose() {
+    ++_loadVersion;
+    _outgoingSubscription?.cancel();
+    _incomingSubscription?.cancel();
+
+    super.onClose();
+  }
 }

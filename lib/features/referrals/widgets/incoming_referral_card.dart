@@ -1,12 +1,14 @@
+
 import 'package:flutter/material.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
-import 'package:sijil/features/family_creation/utils/text_utils.dart';
-import 'package:sijil/features/referrals/models/referral_model.dart';
-import 'package:sijil/features/referrals/utils/referral_formatters.dart';
-import 'package:sijil/features/referrals/widgets/referral_status_badge.dart';
 
-// One incoming referral in the supervisor list (presentational only)
+import 'package:sijil/features/family_creation/utils/text_utils.dart';
+
+import '../models/referral_model.dart';
+import '../utils/referral_formatters.dart';
+import 'referral_status_badge.dart';
+
 class IncomingReferralCard extends StatelessWidget {
   final ReferralModel referral;
   final VoidCallback onTap;
@@ -19,7 +21,8 @@ class IncomingReferralCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isWaiting = referral.status == ReferralStatus.received;
+    final bool isWaiting =
+        referral.status == ReferralStatus.pendingTargetApproval;
 
     return Container(
       width: double.infinity,
@@ -32,13 +35,17 @@ class IncomingReferralCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Status
           ReferralStatusBadge(
             status: referral.status,
-            label: isWaiting ? 'استُلمت · بانتظار القرار' : null,
+            label: isWaiting
+                ? 'بانتظار قرار الجهة المستقبلة'
+                : null,
           ),
 
           const SizedBox(height: 16),
 
+          // Family name
           Text(
             referral.familyName,
             style: const TextStyle(
@@ -50,24 +57,44 @@ class IncomingReferralCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          _InfoRow(label: 'الجهة المحيلة', value: referral.fromOrg),
-          _InfoRow(label: 'الخدمة المطلوبة', value: referral.service),
+          // Referral information
           _InfoRow(
-            label: 'استلام الإحالة',
-            value: formatDateTime(referral.receivedAt ?? referral.createdAt),
+            label: 'الجهة المحيلة',
+            value: referral.sourceOrganizationName,
+          ),
+
+          _InfoRow(
+            label: 'الخدمة المطلوبة',
+            value: referral.serviceName,
+          ),
+
+          _InfoRow(
+            label: 'تاريخ إرسال الإحالة',
+            value: formatDateTime(
+              referral.sourceApprovedAt ?? referral.createdAt,
+            ),
           ),
 
           Text(
-            '${membersLabel(referral.membersCount)} · ${referral.area} · بيانات الإحالة فقط',
-            style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+            '${membersLabel(referral.membersCount)} · '
+                'المنطقة: ${referral.areaId} · '
+                'بيانات الإحالة فقط',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textPrimary,
+            ),
           ),
 
           const SizedBox(height: 16),
 
-          // The decision is available only while the referral waits for it
+          // Review / details button
           AppButton(
-            text: isWaiting ? 'مراجعة الإحالة الواردة' : 'عرض الإحالة',
-            type: isWaiting ? AppButtonType.primary : AppButtonType.secondary,
+            text: isWaiting
+                ? 'مراجعة الإحالة الواردة'
+                : 'عرض الإحالة',
+            type: isWaiting
+                ? AppButtonType.primary
+                : AppButtonType.secondary,
             onPressed: onTap,
           ),
         ],
@@ -80,7 +107,10 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +126,9 @@ class _InfoRow extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             value,
             style: const TextStyle(

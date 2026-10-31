@@ -1,33 +1,61 @@
-// Referral lifecycle (a referral goes from our device to another organization)
+
 enum ReferralStatus {
-  pendingSend, // saved on the device, not sent yet
-  sent, // sent, not confirmed by the receiving organization
-  received, // receiving organization confirmed the receipt
-  underReview, // accepted and being reviewed
-  completed, // service delivered
-  rejected, // receiving organization rejected it
+  pendingSourceApproval,
+  rejectedBySource,
+  pendingTargetApproval,
+  rejectedByTarget,
+  accepted,
+  inProgress,
+  completed,
 }
 
-extension ReferralStatusLabel on ReferralStatus {
+extension ReferralStatusExtension on ReferralStatus {
+  String get value {
+    switch (this) {
+      case ReferralStatus.pendingSourceApproval:
+        return 'pending_source_approval';
+      case ReferralStatus.rejectedBySource:
+        return 'rejected_by_source';
+      case ReferralStatus.pendingTargetApproval:
+        return 'pending_target_approval';
+      case ReferralStatus.rejectedByTarget:
+        return 'rejected_by_target';
+      case ReferralStatus.accepted:
+        return 'accepted';
+      case ReferralStatus.inProgress:
+        return 'in_progress';
+      case ReferralStatus.completed:
+        return 'completed';
+    }
+  }
+
   String get label {
     switch (this) {
-      case ReferralStatus.pendingSend:
-        return 'بانتظار الإرسال · على الجهاز';
-      case ReferralStatus.sent:
-        return 'أُرسلت';
-      case ReferralStatus.received:
-        return 'استُلمت';
-      case ReferralStatus.underReview:
-        return 'قيد المراجعة';
+      case ReferralStatus.pendingSourceApproval:
+        return 'بانتظار موافقة المشرف';
+      case ReferralStatus.rejectedBySource:
+        return 'رفضتها المؤسسة المرسلة';
+      case ReferralStatus.pendingTargetApproval:
+        return 'بانتظار موافقة الجهة المستقبلة';
+      case ReferralStatus.rejectedByTarget:
+        return 'رفضتها الجهة المستقبلة';
+      case ReferralStatus.accepted:
+        return 'تم قبول الإحالة';
+      case ReferralStatus.inProgress:
+        return 'جاري تقديم الخدمة';
       case ReferralStatus.completed:
         return 'تم تقديم الخدمة';
-      case ReferralStatus.rejected:
-        return 'مرفوضة';
     }
+  }
+
+  static ReferralStatus fromValue(String value) {
+    for (final status in ReferralStatus.values) {
+      if (status.value == value) return status;
+    }
+    throw ArgumentError('Unknown referral status: $value');
   }
 }
 
-// One step in the referral timeline
 class ReferralStep {
   final String title;
   final DateTime at;
@@ -40,136 +68,220 @@ class ReferralStep {
   });
 }
 
-// The model does not depend directly on Firebase
 class ReferralModel {
+  // Identity
   final String id;
   final String number;
+
+  // Organizations
+  final String sourceOrganizationId;
+  final String targetOrganizationId;
+  final String sourceOrganizationName;
+  final String targetOrganizationName;
+
+  // Family
+  final String sourceFamilyId;
   final String familyName;
   final int membersCount;
-  final String fromOrg;
-  final String toOrg;
-  final String service;
-  final String reason;
-  final String area;
   final String contactPhone;
+  final String address;
+  final String areaId;
+
+  // Service
+  final String targetServiceId;
+  final String serviceName;
+  final String reason;
+
+  // Status
   final ReferralStatus status;
 
-  // Dates and who did each step
+  // Creation
+  final String createdBy;
   final DateTime createdAt;
-  final DateTime? sentAt;
-  final String? sentBy;
-  final DateTime? receivedAt;
-  final String? receivedBy;
-  final DateTime? reviewedAt;
-  final String? reviewedBy;
+
+  // Source organization approval
+  final String? sourceApprovedBy;
+  final DateTime? sourceApprovedAt;
+
+  // Target organization decision
+  final String? targetReviewedBy;
+  final DateTime? targetReviewedAt;
+
+  // Rejection
+  final String? rejectionReason;
+
+  // Received family relationship
+  final String? receivedFamilyId;
+
+  // Service delivery
+  final DateTime? startedAt;
   final DateTime? completedAt;
   final String? completedBy;
-  final DateTime? notifiedAt;
-
-  // Result of the service / reason of rejection
   final String? result;
   final String? resultNote;
-  final String? rejectReason;
+
+  // Family sharing confirmation
+  final bool sharingConfirmed;
+  final DateTime? sharingConfirmedAt;
+
+  // Last update
+  final DateTime updatedAt;
 
   const ReferralModel({
     required this.id,
     required this.number,
+    required this.sourceOrganizationId,
+    required this.targetOrganizationId,
+    required this.sourceOrganizationName,
+    required this.targetOrganizationName,
+    required this.sourceFamilyId,
     required this.familyName,
     required this.membersCount,
-    required this.fromOrg,
-    required this.toOrg,
-    required this.service,
-    required this.reason,
-    required this.area,
     required this.contactPhone,
+    required this.address,
+    required this.areaId,
+    required this.targetServiceId,
+    required this.serviceName,
+    required this.reason,
     required this.status,
+    required this.createdBy,
     required this.createdAt,
-    this.sentAt,
-    this.sentBy,
-    this.receivedAt,
-    this.receivedBy,
-    this.reviewedAt,
-    this.reviewedBy,
+    required this.updatedAt,
+    this.sourceApprovedBy,
+    this.sourceApprovedAt,
+    this.targetReviewedBy,
+    this.targetReviewedAt,
+    this.rejectionReason,
+    this.receivedFamilyId,
+    this.startedAt,
     this.completedAt,
     this.completedBy,
-    this.notifiedAt,
     this.result,
     this.resultNote,
-    this.rejectReason,
+    required this.sharingConfirmed,
+    this.sharingConfirmedAt,
   });
 
-  // Steps that already happened, in order
+  // Compatibility with existing UI widgets
+  String get fromOrg => sourceOrganizationName;
+  String get toOrg => targetOrganizationName;
+  String get service => serviceName;
+  String get area => areaId;
+
+  bool get isWaitingSourceApproval =>
+      status == ReferralStatus.pendingSourceApproval;
+
+  bool get isWaitingTargetApproval =>
+      status == ReferralStatus.pendingTargetApproval;
+
+  bool get isRejected =>
+      status == ReferralStatus.rejectedBySource ||
+          status == ReferralStatus.rejectedByTarget;
+
+  bool get isCompleted =>
+      status == ReferralStatus.completed;
+
   List<ReferralStep> get steps {
-    final List<ReferralStep> items = [];
+    final items = <ReferralStep>[
+      ReferralStep(
+        title: 'تم إنشاء طلب الإحالة',
+        at: createdAt,
+        actor: createdBy,
+      ),
+    ];
 
-    if (sentAt != null) {
-      items.add(
-        ReferralStep(title: 'أرسلت', at: sentAt!, actor: sentBy ?? '-'),
-      );
+    if (sourceApprovedAt != null) {
+      items.add(ReferralStep(
+        title: 'تم اعتماد الإرسال',
+        at: sourceApprovedAt!,
+        actor: sourceApprovedBy ?? '-',
+      ));
     }
-    if (receivedAt != null) {
-      items.add(
-        ReferralStep(
-          title: 'استلمت',
-          at: receivedAt!,
-          actor: receivedBy ?? '-',
-        ),
-      );
+
+    if (targetReviewedAt != null) {
+      items.add(ReferralStep(
+        title: status == ReferralStatus.rejectedByTarget
+            ? 'رُفضت الإحالة'
+            : 'تم اتخاذ قرار بشأن الإحالة',
+        at: targetReviewedAt!,
+        actor: targetReviewedBy ?? '-',
+      ));
     }
-    if (reviewedAt != null) {
-      items.add(
-        ReferralStep(
-          title: status == ReferralStatus.rejected ? 'رُفضت' : 'قيد المراجعة',
-          at: reviewedAt!,
-          actor: reviewedBy ?? '-',
-        ),
-      );
+
+    if (startedAt != null) {
+      items.add(ReferralStep(
+        title: 'بدأ تقديم الخدمة',
+        at: startedAt!,
+        actor: targetOrganizationName,
+      ));
     }
+
     if (completedAt != null) {
-      items.add(
-        ReferralStep(
-          title: 'تم تقديم الخدمة',
-          at: completedAt!,
-          actor: completedBy ?? '-',
-        ),
-      );
+      items.add(ReferralStep(
+        title: 'تم تقديم الخدمة',
+        at: completedAt!,
+        actor: completedBy ?? '-',
+      ));
     }
 
+    items.sort((a, b) => a.at.compareTo(b.at));
     return items;
   }
 
-  // Used when the receiving organization decides
   ReferralModel copyWith({
     ReferralStatus? status,
-    DateTime? reviewedAt,
-    String? reviewedBy,
-    String? rejectReason,
+    String? receivedFamilyId,
+    String? sourceApprovedBy,
+    DateTime? sourceApprovedAt,
+    String? targetReviewedBy,
+    DateTime? targetReviewedAt,
+    String? rejectionReason,
+    DateTime? startedAt,
+    DateTime? completedAt,
+    String? completedBy,
+    String? result,
+    String? resultNote,
+    DateTime? updatedAt,
   }) {
     return ReferralModel(
       id: id,
       number: number,
+      sourceOrganizationId: sourceOrganizationId,
+      targetOrganizationId: targetOrganizationId,
+      sourceOrganizationName: sourceOrganizationName,
+      targetOrganizationName: targetOrganizationName,
+      sourceFamilyId: sourceFamilyId,
       familyName: familyName,
       membersCount: membersCount,
-      fromOrg: fromOrg,
-      toOrg: toOrg,
-      service: service,
-      reason: reason,
-      area: area,
       contactPhone: contactPhone,
+      address: address,
+      areaId: areaId,
+      targetServiceId: targetServiceId,
+      serviceName: serviceName,
+      reason: reason,
       status: status ?? this.status,
+      createdBy: createdBy,
       createdAt: createdAt,
-      sentAt: sentAt,
-      sentBy: sentBy,
-      receivedAt: receivedAt,
-      receivedBy: receivedBy,
-      reviewedAt: reviewedAt ?? this.reviewedAt,
-      reviewedBy: reviewedBy ?? this.reviewedBy,
-      completedAt: completedAt,
-      completedBy: completedBy,
-      notifiedAt: notifiedAt,
-      result: result,
-      resultNote: resultNote,
-      rejectReason: rejectReason ?? this.rejectReason,
+      updatedAt: updatedAt ?? this.updatedAt,
+      sourceApprovedBy:
+      sourceApprovedBy ?? this.sourceApprovedBy,
+      sourceApprovedAt:
+      sourceApprovedAt ?? this.sourceApprovedAt,
+      targetReviewedBy:
+      targetReviewedBy ?? this.targetReviewedBy,
+      targetReviewedAt:
+      targetReviewedAt ?? this.targetReviewedAt,
+      rejectionReason:
+      rejectionReason ?? this.rejectionReason,
+      receivedFamilyId:
+      receivedFamilyId ?? this.receivedFamilyId,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
+      completedBy: completedBy ?? this.completedBy,
+      result: result ?? this.result,
+      resultNote: resultNote ?? this.resultNote,
+      sharingConfirmed: sharingConfirmed,
+      sharingConfirmedAt: sharingConfirmedAt,
     );
   }
 }

@@ -6,7 +6,6 @@ import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import 'package:sijil/features/family_creation/utils/text_utils.dart';
 import 'package:sijil/features/family_creation/widgets/option_chip.dart';
-import 'package:sijil/features/referrals/constants/referral_demo_data.dart';
 import 'package:sijil/features/referrals/constants/referral_options.dart';
 import 'package:sijil/features/referrals/controllers/referrals_controller.dart';
 import 'package:sijil/features/referrals/models/referral_model.dart';
@@ -15,7 +14,6 @@ import 'package:sijil/features/referrals/widgets/incoming_referral_card.dart';
 import 'package:sijil/features/referrals/widgets/referral_card.dart';
 import 'package:sijil/features/referrals/widgets/referral_flow_scaffold.dart';
 import 'package:sijil/features/referrals/widgets/referral_status_filter.dart';
-import 'package:sijil/features/referrals/widgets/referral_sync_badge.dart';
 import 'package:sijil/features/referrals/widgets/referral_tabs.dart';
 
 // Referrals list: outgoing tab (field worker) / incoming tab (supervisor)
@@ -34,8 +32,8 @@ class ReferralsScreen extends StatelessWidget {
       return ReferralFlowScaffold(
         title: isIncoming ? 'الإحالات الواردة — المشرف' : 'الإحالات',
         breadcrumb: isIncoming
-            ? ReferralDemoData.supervisorHeaderLabel
-            : ReferralDemoData.fieldWorkerLabel,
+            ? 'الإحالات المستقبلة'
+            : 'الإحالات الصادرة',
 
         // Action icon on the left side: it clears the status filter (outgoing only)
         actionIcon: isIncoming ? null : Icons.tune,
@@ -50,12 +48,11 @@ class ReferralsScreen extends StatelessWidget {
         bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 3),
         children: [
           Obx(
-            () => ReferralTabs(
+                () => ReferralTabs(
               labels: [
-                isIncoming
-                    ? 'الصادرة'
-                    : 'الصادرة ${toArabicDigits(controller.outgoing.length)}',
-                'الواردة · للمشرف',
+                'الصادرة ${toArabicDigits(controller.outgoing.length)}',
+                if (controller.isSupervisor)
+                  'الواردة · للمشرف',
               ],
               selectedIndex: controller.tabIndex.value,
               onChanged: controller.selectTab,
@@ -144,13 +141,6 @@ class ReferralsScreen extends StatelessWidget {
   // ---------- Incoming tab (supervisor) ----------
   List<Widget> _incomingChildren() {
     return [
-      // Online / offline + last sync
-      Obx(
-        () => ReferralSyncBadge(
-          isOnline: controller.isOnline.value,
-          lastSyncAt: controller.lastSyncAt.value,
-        ),
-      ),
 
       const SizedBox(height: 24),
 
