@@ -111,9 +111,9 @@ class LoginController extends GetxController {
 
       // 7. Navigate based on user role
       if (role == 'supervisor') {
-        Get.offAll(() => const ManagerHomeScreen());
+        Get.offAll(() =>  ManagerHomeScreen());
       } else if (role == 'field_worker') {
-        Get.offAll(() => const HomeScreen());
+        Get.offAll(() =>  HomeScreen());
       }
 
     } on FirebaseAuthException catch (e) {

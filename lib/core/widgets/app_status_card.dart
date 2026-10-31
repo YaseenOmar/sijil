@@ -98,6 +98,8 @@ class AppStatusCard extends StatelessWidget {
         return AppColors.successBackground;
       case AppStatusType.online:
         return AppColors.successBackground;
+      case AppStatusType.info:
+        return AppColors.successBackground;
       default:
         return AppColors.neutralBackground;
     }

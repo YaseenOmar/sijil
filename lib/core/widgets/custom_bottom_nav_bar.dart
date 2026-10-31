@@ -10,6 +10,7 @@ import 'package:sijil/features/families/views/widgets/family_list_screen.dart';
 import 'package:sijil/features/assistance/views/assistance_dashboard_screen.dart';
 import 'package:sijil/features/referrals/views/referrals_screen.dart';
 import 'package:sijil/features/account/views/account_settings_screen.dart';
+import 'package:sijil/features/service_catalog/views/services_screen.dart';
 
 import '../../features/auth/controllers/user_session_controller.dart';
 
@@ -25,6 +26,15 @@ class CustomBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final sessionController = Get.find<UserSessionController>();
 
+    final orgId = sessionController.organizationId.value;
+
+    if (orgId.isEmpty) {
+      Get.snackbar(
+        'خطأ',
+        'لم يتم العثور على المؤسسة المرتبطة بحسابك',
+      );
+    }
+
     return NavigationBar(
       selectedIndex: selectedIndex,
       backgroundColor: AppColors.surface,
@@ -36,18 +46,23 @@ class CustomBottomNavBar extends StatelessWidget {
         switch (index) {
           case 0:
             if (sessionController.isSupervisor) {
-              Get.off(() => const ManagerHomeScreen());
+              Get.off(() => ManagerHomeScreen());
             } else if (sessionController.isFieldWorker) {
-              Get.off(() => const HomeScreen());
+              Get.off(() => HomeScreen());
             }
             break;
 
           case 1:
-            Get.off(() => const FamilyListScreen());
+            Get.off(() => FamilyListScreen());
             break;
 
           case 2:
-            Get.off(() => const AssistanceDashboardScreen());
+            if (sessionController.isSupervisor) {
+              Get.off(() => ServicesScreen());
+            } else if (sessionController.isFieldWorker) {
+              Get.off(() => AssistanceDashboardScreen(organizationId: orgId,));
+            }
+            break;
             break;
 
           case 3:

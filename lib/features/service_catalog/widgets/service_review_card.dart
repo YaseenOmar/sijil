@@ -4,9 +4,8 @@ import 'package:sijil/core/theme/app_colors.dart';
 // "مراجعة الإعدادات": short summary of the service settings (presentational only)
 class ServiceReviewCard extends StatelessWidget {
   final List<String> lines;
-  final String note;
 
-  const ServiceReviewCard({super.key, required this.lines, required this.note});
+  const ServiceReviewCard({super.key, required this.lines});
 
   @override
   Widget build(BuildContext context) {
@@ -46,14 +45,6 @@ class ServiceReviewCard extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          Text(
-            note,
-            style: const TextStyle(
-              fontSize: 12,
-              height: 1.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
         ],
       ),
     );

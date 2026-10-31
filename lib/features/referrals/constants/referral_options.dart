@@ -15,6 +15,19 @@ class ReferralOptions {
     filterCompleted,
   ];
 
+  // Status filters on the incoming tab (supervisor view, single select)
+  static const String filterWaitingDecision = 'بانتظار القرار';
+  static const String filterUnderReview = 'قيد المراجعة';
+  static const String filterServiceDone = 'تم تقديم الخدمة';
+  static const String filterRejected = 'مرفوضة';
+
+  static const List<String> incomingFilters = [
+    filterWaitingDecision,
+    filterUnderReview,
+    filterServiceDone,
+    filterRejected,
+  ];
+
   // Temporary: organizations and services until they come from Firestore
   static const List<String> receivingOrgs = [
     'مركز الشفاء',

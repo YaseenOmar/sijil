@@ -1,4 +1,5 @@
 import 'package:sijil/features/family_creation/utils/text_utils.dart';
+import 'package:sijil/features/referrals/constants/referral_options.dart';
 import 'package:sijil/features/referrals/models/referral_model.dart';
 
 const List<String> _months = [
@@ -63,4 +64,59 @@ String referralProgressNote(ReferralModel referral) {
     case ReferralStatus.rejected:
       return 'أُرسلت ${formatShortDate(referral.sentAt ?? referral.createdAt)} · استلمت ${formatDate(referral.receivedAt ?? referral.createdAt)}';
   }
+}
+
+// 5 -> ٥ إحالات
+String _referralsCount(int count) {
+  if (count == 1) return 'إحالة واحدة';
+  if (count == 2) return 'إحالتان';
+  if (count <= 10) return '${toArabicDigits(count)} إحالات';
+  return '${toArabicDigits(count)} إحالة';
+}
+
+// متصل · آخر تحديث ٢١ أكتوبر ٨:٥٥ ص
+String syncStatusLabel({required bool isOnline, required DateTime lastSyncAt}) {
+  final String state = isOnline ? 'متصل' : 'دون اتصال';
+
+  return '$state · آخر تحديث ${formatShortDate(lastSyncAt)} ${formatTime(lastSyncAt)}';
+}
+
+// Note under the status filter of the incoming referrals
+String incomingListNote({
+  required String filter,
+  required int shown,
+  required int total,
+}) {
+  final String state = filter == ReferralOptions.filterWaitingDecision
+      ? filter
+      : 'ضمن «$filter»';
+
+  final String note =
+      '${_referralsCount(total)} $state · المعروض ${toArabicDigits(shown)} من ${toArabicDigits(total)}، بترتيب آخر استلام.';
+
+  if (shown < total) return '$note تفاصيل الإحالات الأخرى في بقية القائمة.';
+
+  return note;
+}
+
+// عرض بقية الإحالات الأربع
+String showRestLabel(int count) {
+  const List<String> words = [
+    '',
+    'الواحدة',
+    'الاثنتين',
+    'الثلاث',
+    'الأربع',
+    'الخمس',
+    'الست',
+    'السبع',
+    'الثماني',
+    'التسع',
+    'العشر',
+  ];
+
+  if (count == 1) return 'عرض الإحالة المتبقية';
+  if (count < words.length) return 'عرض بقية الإحالات ${words[count]}';
+
+  return 'عرض بقية الإحالات (${toArabicDigits(count)})';
 }

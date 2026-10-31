@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
@@ -7,8 +8,10 @@ import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import 'package:sijil/features/home/widgets/home_stat_card.dart';
-import '../../../assistance/views/create_assistance_screen.dart';
-import '../../../organization/views/team_and_services_screen.dart';
+import '../../../assistance/views/assign_assistance_screen.dart';
+import '../../../auth/controllers/user_session_controller.dart';
+import '../../../service_catalog/views/add_service_screen.dart';
+import '../../../staff/views/team_and_services_screen.dart';
 import '../../../staff/views/add_staff_screen.dart';
 
 /// Home screen for the organization manager (لوحة مدير الجهة).
@@ -16,9 +19,11 @@ import '../../../staff/views/add_staff_screen.dart';
 /// All values are placeholders until the data is read from Firebase.
 /// Buttons are visual only for now (same as the employee home screen).
 class ManagerHomeScreen extends StatelessWidget {
-  const ManagerHomeScreen({super.key});
+   ManagerHomeScreen({super.key});
 
   static const double _screenPadding = 20;
+
+  final session = Get.find<UserSessionController>();
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +33,8 @@ class ManagerHomeScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
         appBar: CustomAppBar(
           title: 'لوحة مدير الجهة',
-          subtitle: 'خالد عمر · جمعية الأمان',
-          leading: Icons.arrow_back,
+          subtitle: '${session.fullName.value} . ${session.organizationName.value}',
+          action: Icons.notifications_outlined,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -37,20 +42,20 @@ class ManagerHomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _ScopeBadge(text: 'جميع مناطق جمعية الأمان · مدير الجهة'),
+                 _ScopeBadge(text: 'جميع مناطق ${session.organizationName.value} · ${session.roleName}'),
 
                 const SizedBox(height: 16),
 
-                const AppStatusCard(
-                  title: 'مؤشرات مخبّأة · ١٠–٢٠ أكتوبر ٢٠٢٦',
-                  message:
-                  'البيانات حتى ٢٠ أكتوبر ٢٠٢٦، ٤:٣٠ م. لا تشمل عمليات '
-                      '٢١ أكتوبر أو ما لم يُزامن؛ ليست لوحة آنية.',
-                  type: AppStatusType.offline,
-                  icon: Icons.info_outline,
-                ),
-
-                const SizedBox(height: 16),
+                // const AppStatusCard(
+                //   title: 'مؤشرات مخبّأة · ١٠–٢٠ أكتوبر ٢٠٢٦',
+                //   message:
+                //   'البيانات حتى ٢٠ أكتوبر ٢٠٢٦، ٤:٣٠ م. لا تشمل عمليات '
+                //       '٢١ أكتوبر أو ما لم يُزامن؛ ليست لوحة آنية.',
+                //   type: AppStatusType.offline,
+                //   icon: Icons.info_outline,
+                // ),
+                //
+                // const SizedBox(height: 16),
 
 
                 // Statistics (two rows of two cards)
@@ -134,10 +139,6 @@ class ManagerHomeScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _InfoCard(
                   children: [
-                    const _CardText('الفريق الحالي', isLabel: true),
-                    const SizedBox(height: 4),
-                    const _CardText('نورا إبراهيم · أحمد سالم · ليلى منصور'),
-                    const SizedBox(height: 16),
                     AppButton(
                       text: 'إدارة الفريق والخدمات',
                       onPressed: () {
@@ -157,7 +158,7 @@ class ManagerHomeScreen extends StatelessWidget {
                       text: 'إضافة خدمة للجهة',
                       type: AppButtonType.secondary,
                       onPressed: () {
-                        Get.to(() => CreateAssistanceScreen());
+                        Get.to(() => AddServiceScreen());
                       },
                     ),
                   ],

@@ -33,7 +33,6 @@ class FamilyModel {
   // Convert FamilyModel to Firestore Map
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'headName': headName,
       'nationalId': nationalId.trim(),
       'phoneNumber': phoneNumber,
