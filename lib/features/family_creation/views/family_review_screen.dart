@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
-import 'package:sijil/features/family_creation/constants/family_options.dart';
 import 'package:sijil/features/family_creation/controllers/family_creation_controller.dart';
 import 'package:sijil/features/family_creation/utils/text_utils.dart';
 import 'package:sijil/features/family_creation/widgets/confirm_checkbox_tile.dart';
@@ -39,7 +38,7 @@ class FamilyReviewScreen extends StatelessWidget {
               ReviewRow(label: 'رب الأسرة', value: controller.headName),
               ReviewRow(
                 label: 'الهوية',
-                value: maskNationalId(controller.nationalId),
+                value: controller.nationalId,
                 valueDirection: TextDirection.ltr,
               ),
               ReviewRow(
@@ -65,7 +64,9 @@ class FamilyReviewScreen extends StatelessWidget {
             children: [
               ReviewRow(
                 label: 'المنطقة',
-                value: FamilyOptions.areaName(controller.areaId),
+                value: controller.areaNameController.text.isNotEmpty
+                    ? controller.areaNameController.text
+                    : 'جارٍ تحميل اسم المنطقة...',
               ),
               ReviewRow(label: 'العنوان', value: controller.address),
               ReviewRow(

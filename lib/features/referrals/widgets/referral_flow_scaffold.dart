@@ -52,8 +52,6 @@ class ReferralFlowScaffold extends StatelessWidget {
           appBar: CustomAppBar(
             title: title,
             subtitle: breadcrumb,
-            leading: icon,
-            onLeadingPressed: onIconPressed ?? () => Get.back(),
             action: actionIcon,
             onActionPressed: onActionPressed,
           ),

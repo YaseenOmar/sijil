@@ -127,8 +127,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
         backgroundColor: AppColors.neutralBackground,
 
         appBar: CustomAppBar(
-          title: 'خدمات المؤسسة',
-          action: Icons.refresh,
+          title: 'الخدمات',
+          subtitle: 'إدارة خدمات المؤسسة',
+          action: Icons.tune,
           onActionPressed: controller.loadServices,
         ),
 
@@ -171,29 +172,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
             children: [
-              const Text(
-                'إدارة خدمات المؤسسة',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              const Text(
-                'استعرض الخدمات وحالات توفرها '
-                    'وإعدادات الإحالات ومنع التكرار.',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-
-              const SizedBox(height: 20),
 
               // Service metrics
               Obx(

@@ -51,10 +51,10 @@ async function getCurrentUser(request) {
   // Check verified email against current Auth state.
   const authUser = await admin.auth().getUser(uid);
 
-  if (!authUser.emailVerified || authUser.disabled) {
+  if (authUser.disabled) {
     throw new HttpsError(
       "permission-denied",
-      "الحساب غير مفعل أو البريد الإلكتروني غير موثق"
+      "الحساب معطل"
     );
   }
 

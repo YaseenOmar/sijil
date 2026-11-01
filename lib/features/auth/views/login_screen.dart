@@ -21,10 +21,20 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   late final LoginController controller;
 
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     controller = Get.put(LoginController());
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -89,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AppTextField(
                   label: 'البريد الإلكتروني',
                   hint: 'ahmad@alaman.org',
-                  controller: controller.emailController,
+                  controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   isRequired: true,
                   suffixIcon: Icons.email,
@@ -102,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: 'كلمة المرور',
                     isRequired: true,
                     hint: '••••••••',
-                    controller: controller.passwordController,
+                    controller: passwordController,
                     obscureText: !controller.isPasswordVisible.value,
                     suffixIcon: controller.isPasswordVisible.value
                         ? Icons.visibility_off_outlined
@@ -118,7 +128,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: 'تسجيل الدخول',
                     icon: Icons.arrow_forward,
                     isLoading: controller.isLoading.value,
-                    onPressed: controller.login,
+                    onPressed: () {
+                      controller.login(
+                        email: emailController.text,
+                        password: passwordController.text,
+                      );
+                    },
                   ),
                 ),
 

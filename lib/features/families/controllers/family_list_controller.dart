@@ -13,8 +13,10 @@ class FamilyListController extends GetxController {
   }) : _dataSource =
       dataSource ?? FamilyRemoteDataSource();
 
+  // All authorized families loaded from Firestore.
   final List<FamilyModel> _allFamilies = [];
 
+  // Families currently displayed after searching.
   final RxList<FamilyModel> families =
       <FamilyModel>[].obs;
 
@@ -24,13 +26,19 @@ class FamilyListController extends GetxController {
 
   final RxString searchQuery = ''.obs;
 
+  // Total authorized families before search filtering.
+  final RxInt totalFamilies = 0.obs;
+
   @override
   void onInit() {
     super.onInit();
     fetchFamilies();
   }
 
-  // Load families according to the signed-in user's role.
+  // ==========================================
+  // Fetch Families
+  // ==========================================
+
   Future<void> fetchFamilies() async {
     if (isLoading.value) return;
 
@@ -38,16 +46,23 @@ class FamilyListController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
 
+      // Data source applies organization and area
+      // permissions based on the active user.
       final result = await _dataSource.getFamilies();
+
+      if (isClosed) return;
 
       _allFamilies
         ..clear()
         ..addAll(result);
 
+      totalFamilies.value = _allFamilies.length;
+
       filterFamilies(searchQuery.value);
     } on FirebaseException catch (e) {
-      _allFamilies.clear();
-      families.clear();
+      if (isClosed) return;
+
+      _clearFamilyData();
 
       switch (e.code) {
         case 'permission-denied':
@@ -67,40 +82,99 @@ class FamilyListController extends GetxController {
 
         default:
           errorMessage.value =
-          'حدث خطأ أثناء تحميل بيانات الأسر: ${e.message ?? e.code}';
+          'حدث خطأ أثناء تحميل بيانات الأسر: '
+              '${e.message ?? e.code}';
       }
     } catch (e) {
-      _allFamilies.clear();
-      families.clear();
+      if (isClosed) return;
+
+      _clearFamilyData();
 
       errorMessage.value =
       'تعذر تحميل بيانات الأسر: $e';
     } finally {
-      isLoading.value = false;
+      if (!isClosed) {
+        isLoading.value = false;
+      }
     }
   }
 
-  // Filter the already loaded and authorized families.
+  // ==========================================
+  // Normalize Search Text
+  // ==========================================
+
+  String _normalizeSearch(String value) {
+    const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+    const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+
+    const englishDigits = '0123456789';
+
+    var normalized = value.trim().toLowerCase();
+
+    for (var i = 0; i < 10; i++) {
+      normalized = normalized.replaceAll(
+        arabicDigits[i],
+        englishDigits[i],
+      );
+
+      normalized = normalized.replaceAll(
+        persianDigits[i],
+        englishDigits[i],
+      );
+    }
+
+    return normalized.replaceAll(
+      RegExp(r'\s+'),
+      ' ',
+    );
+  }
+
+  String _normalizePhone(String value) {
+    return _normalizeSearch(value).replaceAll(
+      RegExp(r'[\s\-()]'),
+      '',
+    );
+  }
+
+  // ==========================================
+  // Search Families
+  // ==========================================
+
   void filterFamilies(String query) {
+    if (isClosed) return;
+
     searchQuery.value = query.trim();
 
-    if (searchQuery.value.isEmpty) {
+    final normalizedQuery =
+    _normalizeSearch(searchQuery.value);
+
+    if (normalizedQuery.isEmpty) {
       families.assignAll(_allFamilies);
       return;
     }
 
-    final lowerQuery = searchQuery.value.toLowerCase();
+    final normalizedPhoneQuery =
+    _normalizePhone(searchQuery.value);
 
     final filtered = _allFamilies.where((family) {
-      final matchesName = family.headName
-          .toLowerCase()
-          .contains(lowerQuery);
+      final name =
+      _normalizeSearch(family.headName);
+
+      final nationalId =
+      _normalizeSearch(family.nationalId);
+
+      final phone =
+      _normalizePhone(family.phoneNumber);
+
+      final matchesName =
+      name.contains(normalizedQuery);
 
       final matchesNationalId =
-      family.nationalId.contains(lowerQuery);
+      nationalId.contains(normalizedQuery);
 
       final matchesPhone =
-      family.phoneNumber.contains(lowerQuery);
+          normalizedPhoneQuery.isNotEmpty &&
+              phone.contains(normalizedPhoneQuery);
 
       return matchesName ||
           matchesNationalId ||
@@ -108,5 +182,15 @@ class FamilyListController extends GetxController {
     }).toList();
 
     families.assignAll(filtered);
+  }
+
+  // ==========================================
+  // Reset
+  // ==========================================
+
+  void _clearFamilyData() {
+    _allFamilies.clear();
+    families.clear();
+    totalFamilies.value = 0;
   }
 }
