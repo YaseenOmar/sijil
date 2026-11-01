@@ -25,7 +25,7 @@ class ReferralFlowScaffold extends StatelessWidget {
   final VoidCallback? onActionPressed;
 
   final Widget? bottomNavigationBar;
-
+  final bool showBackButton;
   const ReferralFlowScaffold({
     super.key,
     required this.title,
@@ -35,6 +35,7 @@ class ReferralFlowScaffold extends StatelessWidget {
     this.icon = Icons.arrow_back,
     this.iconAtStart = true,
     this.onIconPressed,
+    this.showBackButton = false,
     this.actionIcon,
     this.onActionPressed,
     this.bottomNavigationBar, void Function()? onLeadingPressed, IconData? leadingIcon,
@@ -54,6 +55,11 @@ class ReferralFlowScaffold extends StatelessWidget {
             subtitle: breadcrumb,
             action: actionIcon,
             onActionPressed: onActionPressed,
+            leading: showBackButton ? icon : null,
+            onLeadingPressed: showBackButton
+                ? (onIconPressed ?? () => Get.back())
+                : null,
+
           ),
           bottomNavigationBar: bottomNavigationBar,
 

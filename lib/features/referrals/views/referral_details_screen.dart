@@ -1,7 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/app_button.dart';
 import 'package:sijil/core/widgets/app_status_card.dart';
@@ -32,10 +31,10 @@ class ReferralDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ReferralFlowScaffold(
+      showBackButton: true,
       title: 'تفاصيل الإحالة',
       breadcrumb: 'مسار الخدمة',
-      subtitleLine:
-      'الإحالة ${toArabicDigits(referral.number)} · صادرة',
+      subtitleLine: 'إحالة صادرة · ${referral.sourceOrganizationName}',
       children: [
         Obx(() {
           if (controller.isLoading.value) {
@@ -70,7 +69,51 @@ class ReferralDetailsScreen extends StatelessWidget {
         // ---------------- Summary ----------------
         ReferralSummaryCard(referral: item),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+
+        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(item.createdBy)
+              .get(),
+          builder: (context, snapshot) {
+            String creatorName = 'غير متاح';
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data();
+              final name = data?['fullName'];
+
+              if (name is String && name
+                  .trim()
+                  .isNotEmpty) {
+                creatorName = name.trim();
+              }
+            }
+
+            return ReferralInfoCard(
+              children: [
+                const Text(
+                  'منشئ طلب الإحالة',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  snapshot.connectionState == ConnectionState.waiting
+                      ? 'جاري تحميل الاسم...'
+                      : creatorName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
 
         const Text(
           'مسار الإحالة',
@@ -199,24 +242,26 @@ class ReferralDetailsScreen extends StatelessWidget {
         const SizedBox(height: 16),
 
         Obx(
-              () => AppButton(
-            text: 'اعتماد وإرسال الإحالة',
-            icon: Icons.check_circle_outline,
-            isLoading: controller.isProcessing.value,
-            isEnabled: !controller.isProcessing.value,
-            onPressed: controller.approveReferral,
-          ),
+              () =>
+              AppButton(
+                text: 'اعتماد وإرسال الإحالة',
+                icon: Icons.check_circle_outline,
+                isLoading: controller.isProcessing.value,
+                isEnabled: !controller.isProcessing.value,
+                onPressed: controller.approveReferral,
+              ),
         ),
 
         const SizedBox(height: 16),
 
         Obx(
-              () => AppButton(
-            text: 'رفض الإحالة',
-            type: AppButtonType.secondary,
-            isEnabled: !controller.isProcessing.value,
-            onPressed: controller.toggleRejectField,
-          ),
+              () =>
+              AppButton(
+                text: 'رفض الإحالة',
+                type: AppButtonType.secondary,
+                isEnabled: !controller.isProcessing.value,
+                onPressed: controller.toggleRejectField,
+              ),
         ),
 
         Obx(() {
@@ -242,13 +287,14 @@ class ReferralDetailsScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               Obx(
-                    () => AppButton(
-                  text: 'تأكيد رفض الإحالة',
-                  isLoading: controller.isProcessing.value,
-                  isEnabled: controller.canReject &&
-                      !controller.isProcessing.value,
-                  onPressed: controller.rejectReferral,
-                ),
+                    () =>
+                    AppButton(
+                      text: 'تأكيد رفض الإحالة',
+                      isLoading: controller.isProcessing.value,
+                      isEnabled: controller.canReject &&
+                          !controller.isProcessing.value,
+                      onPressed: controller.rejectReferral,
+                    ),
               ),
             ],
           );
