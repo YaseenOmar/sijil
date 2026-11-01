@@ -72,6 +72,8 @@ class ReferralModel {
   // Identity
   final String id;
   final String number;
+  final String? assignedTo;
+  final DateTime? assignedAt;
 
   // Organizations
   final String sourceOrganizationId;

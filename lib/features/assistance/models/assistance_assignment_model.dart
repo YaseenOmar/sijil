@@ -4,26 +4,28 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AssistanceAssignmentModel {
   static const String statusAssigned = 'assigned';
   static const String statusDelivered = 'delivered';
-  static const String statusCancelled = 'cancelled';
+  static const String statusCanceled = 'canceled';
 
   final String id;
-  final String assistanceId;
+  final String organizationId;
+  final String serviceId;
   final String familyId;
   final String areaId;
   final String assignedBy;
   final DateTime assignedAt;
-  final DateTime nextEligibleAt;
+  final DateTime? nextEligibleAt;
   final String status;
   final String notes;
 
   const AssistanceAssignmentModel({
     required this.id,
-    required this.assistanceId,
+    required this.organizationId,
+    required this.serviceId,
     required this.familyId,
     required this.areaId,
     required this.assignedBy,
     required this.assignedAt,
-    required this.nextEligibleAt,
+    this.nextEligibleAt,
     this.status = statusAssigned,
     this.notes = '',
   });
@@ -39,29 +41,45 @@ class AssistanceAssignmentModel {
       );
     }
 
+    final assignedAtValue = data['assignedAt'];
+
+    if (assignedAtValue is! Timestamp) {
+      throw StateError(
+        'Invalid assignedAt for assignment: ${doc.id}',
+      );
+    }
+
+    final nextEligibleAtValue = data['nextEligibleAt'];
+
     return AssistanceAssignmentModel(
       id: doc.id,
-      assistanceId: data['assistanceId'] as String,
-      familyId: data['familyId'] as String,
-      areaId: data['areaId'] as String,
-      assignedBy: data['assignedBy'] as String,
-      assignedAt:
-      (data['assignedAt'] as Timestamp).toDate(),
-      nextEligibleAt:
-      (data['nextEligibleAt'] as Timestamp).toDate(),
-      status: data['status'] as String? ?? statusAssigned,
+      organizationId:
+      data['organizationId'] as String? ?? '',
+      serviceId: data['serviceId'] as String? ?? '',
+      familyId: data['familyId'] as String? ?? '',
+      areaId: data['areaId'] as String? ?? '',
+      assignedBy: data['assignedBy'] as String? ?? '',
+      assignedAt: assignedAtValue.toDate(),
+      nextEligibleAt: nextEligibleAtValue is Timestamp
+          ? nextEligibleAtValue.toDate()
+          : null,
+      status: data['status'] as String? ??
+          statusAssigned,
       notes: data['notes'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'assistanceId': assistanceId,
+      'organizationId': organizationId,
+      'serviceId': serviceId,
       'familyId': familyId,
       'areaId': areaId,
       'assignedBy': assignedBy,
       'assignedAt': Timestamp.fromDate(assignedAt),
-      'nextEligibleAt': Timestamp.fromDate(nextEligibleAt),
+      'nextEligibleAt': nextEligibleAt == null
+          ? null
+          : Timestamp.fromDate(nextEligibleAt!),
       'status': status,
       'notes': notes,
     };
@@ -71,27 +89,57 @@ class AssistanceAssignmentModel {
 
   bool get isDelivered => status == statusDelivered;
 
-  bool get isCancelled => status == statusCancelled;
+  bool get isCanceled => status == statusCanceled;
+
+  bool get hasCooldown => nextEligibleAt != null;
+
+  bool isWithinCooldownAt(DateTime date) {
+    final nextDate = nextEligibleAt;
+
+    if (nextDate == null || isCanceled) {
+      return false;
+    }
+
+    return date.toUtc().isBefore(
+      nextDate.toUtc(),
+    );
+  }
+
+  Duration remainingCooldownAt(DateTime date) {
+    if (!isWithinCooldownAt(date)) {
+      return Duration.zero;
+    }
+
+    return nextEligibleAt!.toUtc().difference(
+      date.toUtc(),
+    );
+  }
 
   AssistanceAssignmentModel copyWith({
     String? id,
-    String? assistanceId,
+    String? organizationId,
+    String? serviceId,
     String? familyId,
     String? areaId,
     String? assignedBy,
     DateTime? assignedAt,
     DateTime? nextEligibleAt,
+    bool clearNextEligibleAt = false,
     String? status,
     String? notes,
   }) {
     return AssistanceAssignmentModel(
       id: id ?? this.id,
-      assistanceId: assistanceId ?? this.assistanceId,
+      organizationId:
+      organizationId ?? this.organizationId,
+      serviceId: serviceId ?? this.serviceId,
       familyId: familyId ?? this.familyId,
       areaId: areaId ?? this.areaId,
       assignedBy: assignedBy ?? this.assignedBy,
       assignedAt: assignedAt ?? this.assignedAt,
-      nextEligibleAt: nextEligibleAt ?? this.nextEligibleAt,
+      nextEligibleAt: clearNextEligibleAt
+          ? null
+          : (nextEligibleAt ?? this.nextEligibleAt),
       status: status ?? this.status,
       notes: notes ?? this.notes,
     );

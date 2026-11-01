@@ -63,18 +63,15 @@ function orgReference(orgId) {
   return db.collection("organizations").doc(orgId);
 }
 
-function eligibilityDocumentId(familyId, assistanceId) {
+function eligibilityDocumentId(familyId, serviceId) {
   return crypto
     .createHash("sha256")
-    .update(JSON.stringify([familyId, assistanceId]))
+    .update(JSON.stringify([familyId, serviceId]))
     .digest("hex");
 }
 
-// Validate the real user account and, for workers,
-// its linked invitation/employee record.
-//
-// Must be called inside a Firestore transaction,
-// before any writes.
+// Validate user account and linked employee record.
+// Must be called inside a transaction before writes.
 async function getAuthorizedUser(
   tx,
   uid,
@@ -356,16 +353,12 @@ exports.createFamily = onCall(
 // ========================================
 
 exports.assignAssistance = onCall(
-  {
-    region: REGION,
-    timeoutSeconds: 120,
-  },
+  { region: REGION, timeoutSeconds: 120 },
   async (request) => {
     const uid = requireAuthentication(request);
-
     const {
       organizationId,
-      assistanceId,
+      serviceId,
       familyIds,
       requestId,
       notes = "",
@@ -373,7 +366,7 @@ exports.assignAssistance = onCall(
 
     if (
       !validId(organizationId) ||
-      !validId(assistanceId) ||
+      !validId(serviceId) ||
       !validId(requestId) ||
       !Array.isArray(familyIds) ||
       familyIds.length < 1 ||
@@ -390,10 +383,9 @@ exports.assignAssistance = onCall(
     }
 
     const orgRef = orgReference(organizationId);
-
-    const assistanceRef = orgRef
-      .collection("assistances")
-      .doc(assistanceId);
+    const serviceRef = orgRef
+      .collection("services")
+      .doc(serviceId);
 
     const requestRef = orgRef
       .collection("assistanceRequests")
@@ -401,21 +393,21 @@ exports.assignAssistance = onCall(
 
     const sortedFamilyIds = [...familyIds].sort();
 
-    // Reserve the request identity. Retries must
-    // have exactly the same request parameters.
+    // Reserve the request identity.
+    // A retry must have identical parameters.
     await db.runTransaction(async (tx) => {
       await getAuthorizedUser(tx, uid, organizationId);
 
       const savedRequest = await tx.get(requestRef);
 
       if (savedRequest.exists) {
-        const old = savedRequest.data();
+        const previous = savedRequest.data();
 
         if (
-          old.uid !== uid ||
-          old.assistanceId !== assistanceId ||
-          old.notes !== notes ||
-          JSON.stringify(old.familyIds) !==
+          previous.uid !== uid ||
+          previous.serviceId !== serviceId ||
+          previous.notes !== notes ||
+          JSON.stringify(previous.familyIds) !==
             JSON.stringify(sortedFamilyIds)
         ) {
           throw new HttpsError(
@@ -429,7 +421,7 @@ exports.assignAssistance = onCall(
 
       tx.create(requestRef, {
         uid,
-        assistanceId,
+        serviceId,
         familyIds: sortedFamilyIds,
         notes,
         createdAt: Timestamp.now(),
@@ -438,7 +430,7 @@ exports.assignAssistance = onCall(
 
     const results = [];
 
-    // Each family has an independent atomic transaction.
+    // Each family's decision and writes are atomic.
     for (const familyId of sortedFamilyIds) {
       const familyRef = orgRef
         .collection("families")
@@ -450,173 +442,211 @@ exports.assignAssistance = onCall(
 
       const eligibilityRef = orgRef
         .collection("assistanceEligibility")
-        .doc(
-          eligibilityDocumentId(familyId, assistanceId)
-        );
+        .doc(eligibilityDocumentId(familyId, serviceId));
 
       const resultRef = requestRef
         .collection("results")
         .doc(familyId);
 
-      try {
-        const result = await db.runTransaction(
-          async (tx) => {
-            const actor = await getAuthorizedUser(
-              tx,
-              uid,
-              organizationId
-            );
-
-            const [
-              previousResultSnap,
-              assistanceSnap,
-              familySnap,
-              eligibilitySnap,
-              assignmentSnap,
-            ] = await Promise.all([
-              tx.get(resultRef),
-              tx.get(assistanceRef),
-              tx.get(familyRef),
-              tx.get(eligibilityRef),
-              tx.get(assignmentRef),
-            ]);
-
-            // Return the original result when retrying.
-            if (previousResultSnap.exists) {
-              return previousResultSnap.data();
-            }
-
-            let rejection = null;
-
-            if (!assistanceSnap.exists) {
-              rejection = "المساعدة غير موجودة";
-            } else if (
-              assistanceSnap.data().isActive !== true
-            ) {
-              rejection = "المساعدة غير فعالة";
-            }
-
-            const assistance = assistanceSnap.exists
-              ? assistanceSnap.data()
-              : null;
-
-            const cooldownDays = assistance?.cooldownDays;
-
-            if (
-              !rejection &&
-              (
-                !Number.isInteger(cooldownDays) ||
-                cooldownDays < 0 ||
-                cooldownDays > 36500
-              )
-            ) {
-              rejection = "فترة منع التكرار غير صحيحة";
-            }
-
-            if (!rejection && !familySnap.exists) {
-              rejection = "الأسرة غير موجودة";
-            }
-
-            const family = familySnap.exists
-              ? familySnap.data()
-              : null;
-
-            if (
-              !rejection &&
-              !canAccessFamily(actor, family)
-            ) {
-              rejection = "الأسرة خارج نطاق صلاحياتك";
-            }
-
-            const now = Date.now();
-
-            if (!rejection && assignmentSnap.exists) {
-              rejection = "تعارض في معرف سجل التخصيص";
-            }
-
-            if (!rejection && eligibilitySnap.exists) {
-              const previous = eligibilitySnap.data();
-
-              if (
-                !(previous.nextEligibleAt instanceof Timestamp)
-              ) {
-                rejection = "بيانات أهلية الأسرة غير صحيحة";
-              } else if (
-                previous.nextEligibleAt.toMillis() > now
-              ) {
-                rejection =
-                  "الأسرة حصلت على هذه المساعدة خلال فترة المنع";
-              }
-            }
-
-            // Store business rejections too.
-            // This makes retries return the same result.
-            if (rejection) {
-              const rejectedResult = {
-                familyId,
-                success: false,
-                message: rejection,
-              };
-
-              tx.create(resultRef, rejectedResult);
-              return rejectedResult;
-            }
-
-            const assignedAt = Timestamp.fromMillis(now);
-
-            const nextEligibleAt = Timestamp.fromMillis(
-              now + cooldownDays * DAY_MS
-            );
-
-            tx.create(assignmentRef, {
-              assistanceId,
-              familyId,
-              areaId: family.areaId,
-              assignedBy: uid,
-              assignedAt,
-              nextEligibleAt,
-              status: "assigned",
-              notes,
-            });
-
-            tx.set(eligibilityRef, {
-              familyId,
-              assistanceId,
-              lastAssignmentId: assignmentRef.id,
-              lastAssignedAt: assignedAt,
-              nextEligibleAt,
-            });
-
-            const acceptedResult = {
-              familyId,
-              success: true,
-              assignmentId: assignmentRef.id,
-              message: "تم تخصيص المساعدة بنجاح",
-            };
-
-            tx.create(resultRef, acceptedResult);
-
-            return acceptedResult;
-          }
+      // Unexpected errors must not become final rejections.
+      // Retry an uncertain request using the same requestId.
+      const result = await db.runTransaction(async (tx) => {
+        const actor = await getAuthorizedUser(
+          tx,
+          uid,
+          organizationId
         );
 
-        results.push(result);
-      } catch (error) {
-        results.push({
+        const [
+          resultSnap,
+          serviceSnap,
+          familySnap,
+          eligibilitySnap,
+          assignmentSnap,
+        ] = await Promise.all([
+          tx.get(resultRef),
+          tx.get(serviceRef),
+          tx.get(familyRef),
+          tx.get(eligibilityRef),
+          tx.get(assignmentRef),
+        ]);
+
+        if (resultSnap.exists) {
+          return resultSnap.data();
+        }
+
+        let rejection = null;
+        let rejectionCode = null;
+        let cooldownDetails = {};
+
+        const service = serviceSnap.exists
+          ? serviceSnap.data()
+          : null;
+
+        const family = familySnap.exists
+          ? familySnap.data()
+          : null;
+
+        if (!service) {
+          rejection = "الخدمة غير موجودة";
+          rejectionCode = "service_not_found";
+        } else if (service.isActive !== true) {
+          rejection = "الخدمة غير فعالة";
+          rejectionCode = "service_inactive";
+        } else if (
+          service.organizationId &&
+          service.organizationId !== organizationId
+        ) {
+          rejection = "الخدمة لا تتبع المؤسسة";
+          rejectionCode = "invalid_service_organization";
+        }
+
+        const hasCooldown =
+          service?.hasCooldown === true;
+
+        const cooldownDays = hasCooldown
+          ? service.cooldownDays
+          : 0;
+
+        if (
+          !rejection &&
+          hasCooldown &&
+          (
+            !Number.isInteger(cooldownDays) ||
+            cooldownDays < 0 ||
+            cooldownDays > 36500
+          )
+        ) {
+          rejection = "فترة منع التكرار غير صحيحة";
+          rejectionCode = "invalid_cooldown";
+        }
+
+        if (!rejection && !family) {
+          rejection = "الأسرة غير موجودة";
+          rejectionCode = "family_not_found";
+        } else if (
+          !rejection &&
+          !canAccessFamily(actor, family)
+        ) {
+          rejection = "الأسرة خارج نطاق صلاحياتك";
+          rejectionCode = "permission_denied";
+        }
+
+        if (!rejection && assignmentSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "يوجد تخصيص بنفس معرف الطلب دون نتيجة محفوظة؛ راجع السجلات"
+          );
+        }
+
+        const nowMs = Date.now();
+
+        if (
+          !rejection &&
+          hasCooldown &&
+          eligibilitySnap.exists
+        ) {
+          const previous = eligibilitySnap.data();
+
+          if (
+            !(previous.nextEligibleAt instanceof Timestamp)
+          ) {
+            rejection = "بيانات أهلية الأسرة غير صحيحة";
+            rejectionCode = "invalid_eligibility";
+          } else if (
+            previous.nextEligibleAt.toMillis() > nowMs
+          ) {
+            rejection =
+              "الأسرة ضمن فترة منع تكرار هذه الخدمة";
+            rejectionCode = "cooldown_active";
+
+            cooldownDetails = {
+              lastAssignmentId:
+                previous.lastAssignmentId || null,
+
+              lastAssignedAt:
+                previous.lastAssignedAt instanceof Timestamp
+                  ? previous.lastAssignedAt
+                      .toDate()
+                      .toISOString()
+                  : null,
+
+              nextEligibleAt:
+                previous.nextEligibleAt
+                  .toDate()
+                  .toISOString(),
+            };
+          }
+        }
+
+        if (rejection) {
+          const rejectedResult = {
+            familyId,
+            success: false,
+            code: rejectionCode,
+            message: rejection,
+            ...cooldownDetails,
+          };
+
+          tx.create(resultRef, rejectedResult);
+
+          return rejectedResult;
+        }
+
+        const assignedAt =
+          Timestamp.fromMillis(nowMs);
+
+        const nextEligibleAt =
+          hasCooldown && cooldownDays > 0
+            ? Timestamp.fromMillis(
+                nowMs + cooldownDays * DAY_MS
+              )
+            : null;
+
+        tx.create(assignmentRef, {
+          organizationId,
+          serviceId,
           familyId,
-          success: false,
-          message: getErrorMessage(error),
+          areaId: family.areaId,
+          assignedBy: uid,
+          assignedAt,
+          nextEligibleAt,
+          status: "assigned",
+          notes,
         });
-      }
+
+        if (nextEligibleAt) {
+          tx.set(eligibilityRef, {
+            familyId,
+            serviceId,
+            lastAssignmentId: assignmentRef.id,
+            lastAssignedAt: assignedAt,
+            nextEligibleAt,
+          });
+        }
+
+        const acceptedResult = {
+          familyId,
+          success: true,
+          assignmentId: assignmentRef.id,
+          message: "تم تخصيص المساعدة بنجاح",
+        };
+
+        tx.create(resultRef, acceptedResult);
+
+        return acceptedResult;
+      });
+
+      results.push(result);
     }
 
     return {
       results,
       successfulCount: results.filter(
-        (result) => result.success
+        (r) => r.success === true
       ).length,
       failedCount: results.filter(
-        (result) => !result.success
+        (r) => r.success === false
       ).length,
     };
   }
@@ -627,10 +657,7 @@ exports.assignAssistance = onCall(
 // ========================================
 
 exports.cancelAssistanceAssignment = onCall(
-  {
-    region: REGION,
-    timeoutSeconds: 60,
-  },
+  { region: REGION, timeoutSeconds: 60 },
   async (request) => {
     const uid = requireAuthentication(request);
 
@@ -657,10 +684,10 @@ exports.cancelAssistanceAssignment = onCall(
     const assignmentsRef = orgRef
       .collection("assistanceAssignments");
 
-    const assignmentRef = assignmentsRef.doc(assignmentId);
+    const assignmentRef =
+      assignmentsRef.doc(assignmentId);
 
     return db.runTransaction(async (tx) => {
-      // Only supervisors may cancel assignments.
       await getAuthorizedUser(
         tx,
         uid,
@@ -668,7 +695,8 @@ exports.cancelAssistanceAssignment = onCall(
         true
       );
 
-      const assignmentSnap = await tx.get(assignmentRef);
+      const assignmentSnap =
+        await tx.get(assignmentRef);
 
       if (!assignmentSnap.exists) {
         throw new HttpsError(
@@ -679,7 +707,7 @@ exports.cancelAssistanceAssignment = onCall(
 
       const assignment = assignmentSnap.data();
 
-      if (assignment.status === "cancelled") {
+      if (assignment.status === "canceled") {
         return {
           success: true,
           assignmentId,
@@ -687,23 +715,19 @@ exports.cancelAssistanceAssignment = onCall(
         };
       }
 
-      if (
-        !["assigned", "delivered"].includes(
-          assignment.status
-        )
-      ) {
+      // Delivery is a separate real-world event.
+      if (assignment.status !== "assigned") {
         throw new HttpsError(
           "failed-precondition",
-          "حالة التخصيص لا تسمح بالإلغاء"
+          "يمكن إلغاء التخصيصات غير المسلّمة فقط"
         );
       }
 
-      const familyId = assignment.familyId;
-      const assistanceId = assignment.assistanceId;
+      const { familyId, serviceId } = assignment;
 
       if (
         !validId(familyId) ||
-        !validId(assistanceId)
+        !validId(serviceId)
       ) {
         throw new HttpsError(
           "failed-precondition",
@@ -714,14 +738,13 @@ exports.cancelAssistanceAssignment = onCall(
       const eligibilityRef = orgRef
         .collection("assistanceEligibility")
         .doc(
-          eligibilityDocumentId(familyId, assistanceId)
+          eligibilityDocumentId(familyId, serviceId)
         );
 
-      // Find up to two latest active assignments:
-      // the current record and its predecessor.
+      // Find the latest active assignments.
       const recentQuery = assignmentsRef
         .where("familyId", "==", familyId)
-        .where("assistanceId", "==", assistanceId)
+        .where("serviceId", "==", serviceId)
         .where("status", "in", [
           "assigned",
           "delivered",
@@ -729,19 +752,19 @@ exports.cancelAssistanceAssignment = onCall(
         .orderBy("assignedAt", "desc")
         .limit(2);
 
-      const recentSnap = await tx.get(recentQuery);
-      const eligibilitySnap = await tx.get(eligibilityRef);
+      const recentSnap =
+        await tx.get(recentQuery);
 
-      // All reads have completed.
+      const eligibilitySnap =
+        await tx.get(eligibilityRef);
+
       tx.update(assignmentRef, {
-        status: "cancelled",
-        cancelledBy: uid,
-        cancelledAt: Timestamp.now(),
+        status: "canceled",
+        canceledBy: uid,
+        canceledAt: Timestamp.now(),
         cancellationReason: reason,
       });
 
-      // Only alter eligibility when this is
-      // the latest tracked assignment.
       if (
         eligibilitySnap.exists &&
         eligibilitySnap.data().lastAssignmentId ===
@@ -751,15 +774,18 @@ exports.cancelAssistanceAssignment = onCall(
           (doc) => doc.id !== assignmentId
         );
 
-        if (previous) {
-          const previousData = previous.data();
-
+        if (
+          previous &&
+          previous.data().nextEligibleAt instanceof Timestamp
+        ) {
           tx.set(eligibilityRef, {
             familyId,
-            assistanceId,
+            serviceId,
             lastAssignmentId: previous.id,
-            lastAssignedAt: previousData.assignedAt,
-            nextEligibleAt: previousData.nextEligibleAt,
+            lastAssignedAt:
+              previous.data().assignedAt,
+            nextEligibleAt:
+              previous.data().nextEligibleAt,
           });
         } else {
           tx.delete(eligibilityRef);
@@ -774,4 +800,12 @@ exports.cancelAssistanceAssignment = onCall(
     });
   }
 );
-Object.assign(exports, require("./referrals/referral_functions"));
+
+// ========================================
+// Referrals
+// ========================================
+
+Object.assign(
+  exports,
+  require("./referrals/referral_functions")
+);
