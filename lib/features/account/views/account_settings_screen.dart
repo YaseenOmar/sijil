@@ -201,39 +201,39 @@ class AccountSettingsScreen extends StatelessWidget {
 
                //تسجيل الخروج
 
-                sectionTitle('تسجيل الخروج'),
+                // sectionTitle('تسجيل الخروج'),
 
-                const SizedBox(height: 16),
+                // const SizedBox(height: 16),
 
                 // Custom AppStatusCard
-                Obx(() => AppStatusCard(
-                  title:
-                  'لديك ${controller.pendingOperations.value} '
-                      'عمليات غير متزامنة',
-                  message:
-                  'لأمان أولًا ثم أمكن. الخروج لا يحذف '
-                      'البيانات المحلية، لكن فتحها مجددًا '
-                      'يتطلب الحساب نفسه. يلزم اتصال '
-                      'لتسجيل دخول جديد.',
-                  type: AppStatusType.offline,
-                )),
+                // Obx(() => AppStatusCard(
+                //   title:
+                //   'لديك ${controller.pendingOperations.value} '
+                //       'عمليات غير متزامنة',
+                //   message:
+                //   'لأمان أولًا ثم أمكن. الخروج لا يحذف '
+                //       'البيانات المحلية، لكن فتحها مجددًا '
+                //       'يتطلب الحساب نفسه. يلزم اتصال '
+                //       'لتسجيل دخول جديد.',
+                //   type: AppStatusType.offline,
+                // )),
 
-                const SizedBox(height: 20),
+                // const SizedBox(height: 20),
 
                 // Sync Center Button
-                AppButton(
-                  text: 'الانتقال إلى مركز المساعدة',
-                  type: AppButtonType.primary,
-                  onPressed: () {
-                    // TODO: Open permissions help screen
-                  },
-                ),
+                // AppButton(
+                //   text: 'الانتقال إلى مركز المساعدة',
+                //   type: AppButtonType.primary,
+                //   onPressed: () {
+                //     // TODO: Open permissions help screen
+                //   },
+                // ),
 
                 const SizedBox(height: 20),
 
                 Obx(() => AppButton(
-                  text: 'تسجيل الخروج مع إبقاء البيانات',
-                  type: AppButtonType.secondary,
+                  text: 'تسجيل الخروج',
+                  type: AppButtonType.primary,
                   isLoading: controller.isLoggingOut.value,
                   onPressed: controller.confirmLogout,
                 )),
@@ -249,7 +249,7 @@ class AccountSettingsScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
               ],
             ),
           ),

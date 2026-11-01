@@ -12,7 +12,7 @@ import 'package:sijil/features/staff/widgets/form_dropdown_field.dart';
 
 import '../controllers/create_referral_controller.dart';
 import '../utils/referral_validators.dart';
-import '../widgets/referral_flow_scaffold.dart';
+import '../widgets/referral_flow_scaffold2.dart';
 import '../widgets/share_scope_card.dart';
 
 class CreateReferralScreen extends StatelessWidget {
@@ -23,7 +23,8 @@ class CreateReferralScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ReferralFlowScaffold(
+
+    return ReferralFlowScaffold2(
       title: 'إنشاء إحالة',
       breadcrumb: 'تنسيق الخدمة',
       children: [
@@ -31,7 +32,7 @@ class CreateReferralScreen extends StatelessWidget {
           if (controller.isLoading.value) {
             return const AppStatusCard(
               title: 'جاري تحميل البيانات',
-              message: 'نجهز الأسر والمؤسسات المتاحة',
+              message: 'جاري تجهيز الأسر والمؤسسات المتاحة',
               type: AppStatusType.loading,
             );
           }

@@ -1,4 +1,5 @@
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -249,19 +250,24 @@ class CreateReferralController extends GetxController {
 
   // ---------------- Submit ----------------
 
+
   Future<void> submitReferral() async {
-    if (isSaving.value || isLoading.value) return;
+    if (isClosed || isSaving.value || isLoading.value) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
 
+    // 1. Validate form
     if (!(formKey.currentState?.validate() ?? false)) {
       return;
     }
 
+    // 2. Get selected values
     final familyId = selectedFamilyId.value;
     final targetOrgId = selectedOrganizationId.value;
     final serviceId = selectedServiceId.value;
+    final reason = reasonController.text.trim();
 
+    // 3. Validate required selections
     if (familyId == null ||
         targetOrgId == null ||
         serviceId == null) {
@@ -272,6 +278,16 @@ class CreateReferralController extends GetxController {
       return;
     }
 
+    // 4. Validate referral reason
+    if (reason.isEmpty) {
+      Get.snackbar(
+        'تنبيه',
+        'يرجى إدخال سبب الإحالة',
+      );
+      return;
+    }
+
+    // 5. Confirm information sharing
     if (!isConfirmed.value) {
       Get.snackbar(
         'تنبيه',
@@ -280,21 +296,7 @@ class CreateReferralController extends GetxController {
       return;
     }
 
-    // Prevent submitting a stale or invalid selection.
-    if (!families.any((item) => item['id'] == familyId) ||
-        !organizations.any(
-              (item) => item['id'] == targetOrgId,
-        ) ||
-        !services.any(
-              (item) => item['id'] == serviceId,
-        )) {
-      Get.snackbar(
-        'تنبيه',
-        'البيانات المختارة غير متاحة، يرجى إعادة الاختيار',
-      );
-      return;
-    }
-
+    // 6. Prevent referral to the same organization
     if (targetOrgId == organizationId) {
       Get.snackbar(
         'تنبيه',
@@ -303,6 +305,7 @@ class CreateReferralController extends GetxController {
       return;
     }
 
+    // 7. Wait for available services to load
     if (isLoadingServices.value) {
       Get.snackbar(
         'تنبيه',
@@ -311,17 +314,55 @@ class CreateReferralController extends GetxController {
       return;
     }
 
+    // 8. Validate that selected data is still available
+    final familyExists = families.any(
+          (item) => item['id'] == familyId,
+    );
+
+    final organizationExists = organizations.any(
+          (item) => item['id'] == targetOrgId,
+    );
+
+    final serviceExists = services.any(
+          (item) => item['id'] == serviceId,
+    );
+
+    if (!familyExists ||
+        !organizationExists ||
+        !serviceExists) {
+      Get.snackbar(
+        'تنبيه',
+        'البيانات المختارة غير متاحة، يرجى إعادة الاختيار',
+      );
+      return;
+    }
+
     try {
       isSaving.value = true;
 
+      // 9. Debug information
+      debugPrint('========== CREATE REFERRAL ==========');
+      debugPrint('Source organization: $organizationId');
+      debugPrint('Family ID: $familyId');
+      debugPrint('Target organization: $targetOrgId');
+      debugPrint('Target service: $serviceId');
+      debugPrint('User role: $role');
+      debugPrint('Sharing confirmed: ${isConfirmed.value}');
+
+      // 10. Call Firebase Cloud Function
       await _referralService.createReferral(
         familyId: familyId,
         targetOrganizationId: targetOrgId,
         targetServiceId: serviceId,
-        reason: reasonController.text.trim(),
+        reason: reason,
         sharingConfirmed: isConfirmed.value,
       );
 
+      debugPrint('CREATE REFERRAL: SUCCESS');
+
+      if (isClosed) return;
+
+      // 11. Return to referrals screen
       Get.back();
 
       Get.snackbar(
@@ -330,15 +371,83 @@ class CreateReferralController extends GetxController {
             ? 'تم إرسال الإحالة للمؤسسة المستقبلة'
             : 'تم إرسال الطلب للمشرف للموافقة عليه',
       );
-    } catch (e) {
+
+    } on FirebaseFunctionsException catch (e, stackTrace) {
+      debugPrint('========== CLOUD FUNCTION ERROR ==========');
+      debugPrint('CODE: ${e.code}');
+      debugPrint('MESSAGE: ${e.message}');
+      debugPrint('DETAILS: ${e.details}');
+      debugPrint('PLUGIN: ${e.plugin}');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (isClosed) return;
+
+      String message;
+
+      switch (e.code) {
+        case 'permission-denied':
+          message = e.message ??
+              'ليس لديك صلاحية لإنشاء هذه الإحالة';
+          break;
+
+        case 'unauthenticated':
+          message = 'انتهت جلسة تسجيل الدخول، يرجى الدخول مجددًا';
+          break;
+
+        case 'invalid-argument':
+          message = e.message ??
+              'بيانات الإحالة غير صحيحة';
+          break;
+
+        case 'failed-precondition':
+          message = e.message ??
+              'لا يمكن إنشاء الإحالة في الحالة الحالية';
+          break;
+
+        case 'not-found':
+          message = e.message ??
+              'الأسرة أو المؤسسة أو الخدمة غير موجودة';
+          break;
+
+        case 'unavailable':
+          message = 'تعذر الاتصال بخدمة Firebase';
+          break;
+
+        case 'internal':
+          message =
+          'حدث خطأ داخل الخادم أثناء إنشاء الإحالة. '
+              'يرجى مراجعة Cloud Functions Logs.';
+          break;
+
+        default:
+          message = e.message ??
+              'تعذر إنشاء الإحالة، يرجى المحاولة مجددًا';
+      }
+
+      Get.snackbar(
+        'تعذر إنشاء الإحالة',
+        message,
+      );
+
+    } catch (e, stackTrace) {
+      debugPrint('========== CREATE REFERRAL ERROR ==========');
+      debugPrint('ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (isClosed) return;
+
       Get.snackbar(
         'تعذر إنشاء الإحالة',
         _errorMessage(e),
       );
+
     } finally {
-      isSaving.value = false;
+      if (!isClosed) {
+        isSaving.value = false;
+      }
     }
   }
+
 
   String _errorMessage(Object error) {
     if (error is FirebaseException) {

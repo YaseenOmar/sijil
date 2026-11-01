@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,6 +71,7 @@ class UserSessionController extends GetxController {
   // Load User, Organization and Area Data
   // ========================================
 
+
   Future<void> loadUserData() async {
     final user = _auth.currentUser;
 
@@ -82,7 +84,10 @@ class UserSessionController extends GetxController {
     isProfileLoaded.value = false;
 
     try {
-      // Read user profile
+      // ======================================
+      // 1. Read User Profile
+      // ======================================
+
       final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
@@ -95,8 +100,13 @@ class UserSessionController extends GetxController {
       }
 
       final data = userDoc.data()!;
+
       final savedRole = data['role'];
       final orgId = data['organizationId'];
+
+      // ======================================
+      // 2. Validate User
+      // ======================================
 
       if (data['status'] != 'active') {
         throw Exception('حساب المستخدم غير فعال');
@@ -107,12 +117,12 @@ class UserSessionController extends GetxController {
         throw Exception('دور المستخدم غير مسموح');
       }
 
-      if (orgId is! String || orgId.isEmpty) {
+      if (orgId is! String || orgId.trim().isEmpty) {
         throw Exception('المستخدم غير مرتبط بمؤسسة');
       }
 
       // ======================================
-      // Load Organization Name
+      // 3. Load Organization Name
       // ======================================
 
       final orgDoc = await _firestore
@@ -130,66 +140,40 @@ class UserSessionController extends GetxController {
           orgDoc.data()?['name'] as String? ?? '';
 
       // ======================================
-      // Resolve Assigned Area
+      // 4. Resolve Assigned Area
       // ======================================
+
+      // Employee data is stored in users/{uid}
+      // after invitation acceptance.
+      //
+      // The invitation document in employees
+      // is deleted after acceptance.
+      //
+      // Therefore, do not read employees here.
 
       String resolvedAreaId = '';
       String resolvedAreaName = '';
 
+      final savedAreaId = data['areaId'];
+
       if (savedRole == 'field_worker') {
-        // The actual worker area is stored
-        // in the employee invitation record.
-        final invitationId = data['invitationId'];
-
-        if (invitationId is! String ||
-            invitationId.isEmpty) {
+        if (savedAreaId is! String ||
+            savedAreaId.trim().isEmpty) {
           throw Exception(
-            'سجل الموظف غير مرتبط بدعوة',
+            'منطقة عمل الموظف غير محددة',
           );
         }
 
-        final employeeDoc = await _firestore
-            .collection('organizations')
-            .doc(orgId)
-            .collection('employees')
-            .doc(invitationId)
-            .get(
-          const GetOptions(source: Source.server),
-        );
-
-        if (!employeeDoc.exists) {
-          throw Exception('سجل الموظف غير موجود');
-        }
-
-        final employee = employeeDoc.data()!;
-
-        if (employee['uid'] != user.uid ||
-            employee['status'] != 'active' ||
-            employee['role'] != 'field_worker' ||
-            employee['organizationId'] != orgId) {
-          throw Exception(
-            'بيانات الموظف غير متطابقة',
-          );
-        }
-
-        final assignedArea = employee['areaId'];
-
-        if (assignedArea is! String ||
-            assignedArea.isEmpty) {
-          throw Exception(
-            'لم يتم تحديد منطقة الموظف',
-          );
-        }
-
-        resolvedAreaId = assignedArea;
+        resolvedAreaId = savedAreaId.trim();
       } else {
         // Supervisor may not have a specific area.
-        resolvedAreaId =
-            data['areaId'] as String? ?? '';
+        resolvedAreaId = savedAreaId is String
+            ? savedAreaId.trim()
+            : '';
       }
 
       // ======================================
-      // Load Area Name
+      // 5. Load Area Name
       // ======================================
 
       if (resolvedAreaId.isNotEmpty) {
@@ -210,7 +194,10 @@ class UserSessionController extends GetxController {
             areaDoc.data()?['name'] as String? ?? '';
       }
 
-      // Avoid loading a previous user's data.
+      // ======================================
+      // 6. Verify Current User
+      // ======================================
+
       if (_auth.currentUser?.uid != user.uid) {
         throw Exception(
           'تغير المستخدم أثناء تحميل البيانات',
@@ -218,7 +205,7 @@ class UserSessionController extends GetxController {
       }
 
       // ======================================
-      // Save Data in GetX
+      // 7. Save Data in GetX
       // ======================================
 
       uid.value = user.uid;
@@ -232,6 +219,7 @@ class UserSessionController extends GetxController {
               '';
 
       role.value = savedRole as String;
+
       organizationId.value = orgId;
       organizationName.value = orgName;
 
@@ -241,13 +229,21 @@ class UserSessionController extends GetxController {
       status.value = data['status'] as String;
 
       isProfileLoaded.value = true;
-    } catch (_) {
+
+      debugPrint(
+        'SESSION: User profile loaded successfully',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('SESSION: loadUserData failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
       clearUserData();
       rethrow;
     } finally {
       isProfileLoading.value = false;
     }
   }
+
 
   // ========================================
   // Start Session After Login

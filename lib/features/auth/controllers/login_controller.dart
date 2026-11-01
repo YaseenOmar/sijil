@@ -1,7 +1,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'package:sijil/features/auth/controllers/user_session_controller.dart';
@@ -13,26 +13,26 @@ import '../services/auth_service.dart';
 class LoginController extends GetxController {
   final AuthService _authService = AuthService();
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final isPasswordVisible = false.obs;
   final isLoading = false.obs;
 
   void togglePasswordVisibility() {
-    isPasswordVisible.value = !isPasswordVisible.value;
+    if (isClosed) return;
+    isPasswordVisible.toggle();
   }
 
-  Future<void> login() async {
-    if (isLoading.value) return;
+  Future<void> login({
+    required String email,
+    required String password,
+  }) async {
+    if (isClosed || isLoading.value) return;
 
-    final email = emailController.text.trim();
-    final password = passwordController.text;
+    final cleanEmail = email.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (cleanEmail.isEmpty || password.isEmpty) {
       Get.snackbar(
         'تنبيه',
         'يرجى إدخال البريد الإلكتروني وكلمة المرور',
@@ -40,137 +40,264 @@ class LoginController extends GetxController {
       return;
     }
 
+    bool authenticated = false;
+    bool loginSucceeded = false;
+
+    String stage = 'authentication';
+    String? errorTitle;
+    String? errorMessage;
+
     try {
       isLoading.value = true;
 
-      // 1. Authenticate with Firebase
-      final credential =
-      await _authService.login(email, password);
+      // -----------------------------------
+      // 1. Firebase Authentication
+      // -----------------------------------
 
-      final user = credential.user;
+      debugPrint('LOGIN: Authenticating');
+
+      final credential = await _authService.login(
+        cleanEmail,
+        password,
+      );
+
+      authenticated = true;
+
+      final user = credential.user ?? _auth.currentUser;
 
       if (user == null) {
-        throw Exception('فشل تسجيل الدخول');
+        throw const _LoginRejected(
+          'تعذر تسجيل الدخول',
+          'تعذر الحصول على بيانات المستخدم',
+        );
       }
 
-      // 2. Get user profile from Firestore
+      debugPrint('LOGIN: Auth success, UID=${user.uid}');
+
+      // -----------------------------------
+      // 2. Read user profile
+      // -----------------------------------
+
+      stage = 'user_profile';
+
+      debugPrint(
+        'LOGIN: Reading users/${user.uid}',
+      );
+
+      debugPrint(
+        'LOGIN: Project ${_firestore.app.options.projectId}',
+      );
+
       final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
-          .get();
+          .get(
+        const GetOptions(source: Source.server),
+      );
 
-      // 3. Check if user exists
+      debugPrint(
+        'LOGIN: User profile read successfully',
+      );
+
       if (!userDoc.exists) {
-        await _authService.logout();
-
-        Get.snackbar(
+        throw const _LoginRejected(
           'غير مصرح',
           'لا يوجد حساب معتمد لهذا المستخدم',
         );
-        return;
       }
 
-      final userData = userDoc.data()!;
+      final data = userDoc.data()!;
 
-      final status = userData['status'];
-      final role = userData['role'];
+      final status = data['status'];
+      final role = data['role'];
+      final organizationId = data['organizationId'];
+      final areaId = data['areaId'];
 
-      // 4. Check account status
+      // -----------------------------------
+      // 3. Validate user permissions
+      // -----------------------------------
+
+      stage = 'validation';
+
       if (status != 'active') {
-        await _authService.logout();
-
-        Get.snackbar(
+        throw const _LoginRejected(
           'الحساب غير نشط',
           'يرجى التواصل مع المشرف لتفعيل حسابك',
         );
-        return;
       }
 
-      // 5. Check user role
       if (role != 'supervisor' &&
           role != 'field_worker') {
-        await _authService.logout();
-
-        Get.snackbar(
+        throw const _LoginRejected(
           'غير مصرح',
           'الدور الوظيفي غير معتمد',
         );
-        return;
       }
 
-      // 6. Save user session and last activity
-      final sessionController =
-      Get.find<UserSessionController>();
+      if (organizationId is! String ||
+          organizationId.trim().isEmpty) {
+        throw const _LoginRejected(
+          'بيانات غير مكتملة',
+          'المؤسسة المرتبطة بالحساب غير محددة',
+        );
+      }
 
-      await sessionController.startSession(role as String);
+      if (role == 'field_worker' &&
+          (areaId is! String ||
+              areaId.trim().isEmpty)) {
+        throw const _LoginRejected(
+          'بيانات غير مكتملة',
+          'منطقة عمل الموظف غير محددة',
+        );
+      }
 
-      Get.snackbar(
-        'نجاح',
-        'تم تسجيل الدخول بنجاح',
-      );
+      if (isClosed) return;
 
-      // 7. Navigate based on user role
+      // -----------------------------------
+      // 4. Start user session
+      // -----------------------------------
+
+
+      stage = 'session';
+
+      debugPrint('LOGIN: Starting session');
+      debugPrint('LOGIN: Role = $role');
+      debugPrint('LOGIN: Organization = $organizationId');
+      debugPrint('LOGIN: Area = $areaId');
+
+      try {
+        final sessionController =
+        Get.find<UserSessionController>();
+
+        await sessionController.startSession(
+          role as String,
+        );
+
+        debugPrint('LOGIN: Session started successfully');
+      } catch (e, stackTrace) {
+        debugPrint('SESSION START ERROR: $e');
+        debugPrintStack(stackTrace: stackTrace);
+        rethrow;
+      }
+
+
+      // Authentication and authorization succeeded.
+      loginSucceeded = true;
+
+      if (isClosed) return;
+
+      // -----------------------------------
+      // 5. Navigate to home screen
+      // -----------------------------------
+
+      stage = 'navigation';
+
       if (role == 'supervisor') {
-        Get.offAll(() =>  ManagerHomeScreen());
+        Get.offAll(() => ManagerHomeScreen());
       } else if (role == 'field_worker') {
-        Get.offAll(() =>  HomeScreen());
+        Get.offAll(() => HomeScreen());
       }
+
+    } on _LoginRejected catch (e) {
+      errorTitle = e.title;
+      errorMessage = e.message;
 
     } on FirebaseAuthException catch (e) {
-      String message;
+      debugPrint(
+        'LOGIN AUTH ERROR: ${e.code} - ${e.message}',
+      );
 
-      switch (e.code) {
-        case 'invalid-email':
-          message = 'البريد الإلكتروني غير صحيح';
-          break;
-
-        case 'invalid-credential':
-        case 'wrong-password':
-        case 'user-not-found':
-          message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-          break;
-
-        case 'user-disabled':
-          message = 'تم تعطيل هذا الحساب';
-          break;
-
-        case 'too-many-requests':
-          message = 'محاولات كثيرة، يرجى المحاولة لاحقاً';
-          break;
-
-        case 'network-request-failed':
-          message = 'تعذر الاتصال بالإنترنت';
-          break;
-
-        default:
-          message = 'حدث خطأ أثناء تسجيل الدخول';
-      }
-
-      Get.snackbar('خطأ', message);
+      errorTitle = 'تعذر تسجيل الدخول';
+      errorMessage = _authErrorMessage(e);
 
     } on FirebaseException catch (e) {
-      Get.snackbar(
-        'خطأ في قاعدة البيانات',
-        e.code == 'permission-denied'
-            ? 'لا توجد صلاحية لقراءة بيانات الحساب'
-            : 'تعذر التحقق من بيانات الحساب',
-      );
+      debugPrint('LOGIN FIREBASE ERROR');
+      debugPrint('STAGE: $stage');
+      debugPrint('CODE: ${e.code}');
+      debugPrint('MESSAGE: ${e.message}');
+      debugPrint('PLUGIN: ${e.plugin}');
 
-    } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ غير متوقع أثناء تسجيل الدخول',
-      );
+      errorTitle = 'تعذر إكمال تسجيل الدخول';
 
+      if (e.code == 'permission-denied') {
+        errorMessage = stage == 'user_profile'
+            ? 'لا توجد صلاحية لقراءة وثيقة المستخدم'
+            : stage == 'session'
+            ? 'تعذر بدء الجلسة بسبب صلاحيات Firebase'
+            : 'تم رفض عملية Firebase بسبب الصلاحيات';
+      } else if (e.code == 'unavailable') {
+        errorMessage = 'تعذر الاتصال بخدمة Firebase';
+      } else {
+        errorMessage = e.message ??
+            'حدث خطأ أثناء تنفيذ عملية Firebase';
+      }
+
+    } catch (e, stackTrace) {
+      debugPrint('LOGIN UNEXPECTED ERROR');
+      debugPrint('STAGE: $stage');
+      debugPrint('ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      errorTitle = 'حدث خطأ';
+      errorMessage = 'تعذر إكمال تسجيل الدخول';
     } finally {
-      isLoading.value = false;
+      // -----------------------------------
+      // 6. Cleanup unsuccessful attempt
+      // -----------------------------------
+
+      if (authenticated && !loginSucceeded) {
+        try {
+          debugPrint(
+            'LOGIN: Signing out after failed attempt',
+          );
+
+          await _authService.logout();
+        } catch (e) {
+          debugPrint('LOGIN LOGOUT ERROR: $e');
+        }
+      }
+
+      if (!isClosed) {
+        isLoading.value = false;
+
+        if (errorMessage != null) {
+          Get.snackbar(
+            errorTitle ?? 'خطأ',
+            errorMessage,
+          );
+        }
+      }
     }
   }
 
-  @override
-  void onClose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.onClose();
+  String _authErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'البريد الإلكتروني غير صحيح';
+
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+
+      case 'user-disabled':
+        return 'تم تعطيل هذا الحساب';
+
+      case 'too-many-requests':
+        return 'محاولات كثيرة، يرجى المحاولة لاحقًا';
+
+      case 'network-request-failed':
+        return 'تعذر الاتصال بالإنترنت';
+
+      default:
+        return e.message ?? 'حدث خطأ أثناء تسجيل الدخول';
+    }
   }
+}
+
+class _LoginRejected implements Exception {
+  final String title;
+  final String message;
+
+  const _LoginRejected(this.title, this.message);
 }

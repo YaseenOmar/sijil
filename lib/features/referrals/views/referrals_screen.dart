@@ -30,20 +30,15 @@ class ReferralsScreen extends StatelessWidget {
       final bool isIncoming = controller.tabIndex.value == 1;
 
       return ReferralFlowScaffold(
-        title: isIncoming ? 'الإحالات الواردة — المشرف' : 'الإحالات',
+        title: 'الإحالات',
         breadcrumb: isIncoming
-            ? 'الإحالات المستقبلة'
+            ? 'الإحالات الواردة'
             : 'الإحالات الصادرة',
 
         // Action icon on the left side: it clears the status filter (outgoing only)
-        actionIcon: isIncoming ? null : Icons.tune,
+        actionIcon: Icons.tune,
         onActionPressed: isIncoming ? null : controller.resetFilter,
 
-        // Back arrow on the right side (incoming tab only, like the design)
-        leadingIcon: isIncoming ? Icons.arrow_back : null,
-        onLeadingPressed: isIncoming
-            ? controller.backToSupervisorDashboard
-            : null,
 
         bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 3),
         children: [
@@ -218,13 +213,6 @@ class ReferralsScreen extends StatelessWidget {
         ),
       ),
 
-      const SizedBox(height: 16),
-
-      AppButton(
-        text: 'العودة إلى لوحة المشرف',
-        type: AppButtonType.secondary,
-        onPressed: controller.backToSupervisorDashboard,
-      ),
     ];
   }
 
