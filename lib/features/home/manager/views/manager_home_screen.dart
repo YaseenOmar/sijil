@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
@@ -16,10 +17,9 @@ import '../../../staff/views/add_staff_screen.dart';
 
 /// Home screen for the organization manager (لوحة مدير الجهة).
 ///
-/// All values are placeholders until the data is read from Firebase.
-/// Buttons are visual only for now (same as the employee home screen).
+/// Statistics are calculated from Firestore for the current organization.
 class ManagerHomeScreen extends StatelessWidget {
-   ManagerHomeScreen({super.key});
+  ManagerHomeScreen({super.key});
 
   static const double _screenPadding = 20;
 
@@ -33,7 +33,8 @@ class ManagerHomeScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
         appBar: CustomAppBar(
           title: 'لوحة مدير الجهة',
-          subtitle: '${session.fullName.value} . ${session.organizationName.value}',
+          subtitle: '${session.fullName.value} . ${session.organizationName
+              .value}',
           action: Icons.notifications_outlined,
         ),
         body: SafeArea(
@@ -42,37 +43,30 @@ class ManagerHomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                 _ScopeBadge(text: 'جميع مناطق ${session.organizationName.value} · ${session.roleName}'),
+                _ScopeBadge(text: 'جميع مناطق ${session.organizationName
+                    .value} · ${session.roleName}'),
 
                 const SizedBox(height: 16),
 
-                // const AppStatusCard(
-                //   title: 'مؤشرات مخبّأة · ١٠–٢٠ أكتوبر ٢٠٢٦',
-                //   message:
-                //   'البيانات حتى ٢٠ أكتوبر ٢٠٢٦، ٤:٣٠ م. لا تشمل عمليات '
-                //       '٢١ أكتوبر أو ما لم يُزامن؛ ليست لوحة آنية.',
-                //   type: AppStatusType.offline,
-                //   icon: Icons.info_outline,
-                // ),
-                //
-                // const SizedBox(height: 16),
+// const AppStatusCard(
+//   title: 'مؤشرات مخبّأة · ١٠–٢٠ أكتوبر ٢٠٢٦',
+//   message:
+//   'البيانات حتى ٢٠ أكتوبر ٢٠٢٦، ٤:٣٠ م. لا تشمل عمليات '
+//       '٢١ أكتوبر أو ما لم يُزامن؛ ليست لوحة آنية.',
+//   type: AppStatusType.offline,
+//   icon: Icons.info_outline,
+// ),
+//
+// const SizedBox(height: 16),
 
 
-                // Statistics (two rows of two cards)
-                const _StatsRow(
-                  first: HomeStat(value: '٤٨٦', label: 'أسرة مسجلة'),
-                  second: HomeStat(value: '٢١٤', label: 'عملية مساعدة'),
-                ),
-                const SizedBox(height: 12),
-                const _StatsRow(
-                  first: HomeStat(value: '١٧٨', label: 'أسرة مستفيدة'),
-                  second: HomeStat(value: '٣٦', label: 'إحالة مكتملة'),
-                ),
+// Live statistics from the current organization only.
+                _ManagerLiveStats(organizationId: session.organizationId.value),
 
                 const SizedBox(height: 24),
 
-                // ---------- Work follow-up ----------
-                /*const _SectionTitle('متابعة العمل'),
+// ---------- Work follow-up ----------
+/*const _SectionTitle('متابعة العمل'),
                 const SizedBox(height: 12),
                 _InfoCard(
                   children: [
@@ -113,7 +107,7 @@ class ManagerHomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 */
-                // ---------- Administrative priorities ----------
+// ---------- Administrative priorities ----------
                 const _SectionTitle('أولويات المتابعة الإدارية'),
                 const SizedBox(height: 12),
                 const _InfoCard(
@@ -134,7 +128,7 @@ class ManagerHomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // ---------- Organization management ----------
+// ---------- Organization management ----------
                 const _SectionTitle('إدارة الجهة'),
                 const SizedBox(height: 12),
                 _InfoCard(
@@ -164,10 +158,10 @@ class ManagerHomeScreen extends StatelessWidget {
                   ],
                 ),
 
-                // const SizedBox(height: 24),
+// const SizedBox(height: 24),
 
-                // ---------- Reports and export ----------
-                /*const _SectionTitle('التقارير والتصدير'),
+// ---------- Reports and export ----------
+/*const _SectionTitle('التقارير والتصدير'),
                 const SizedBox(height: 12),
                 _InfoCard(
                   children: [
@@ -191,30 +185,139 @@ class ManagerHomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),*/
 
-                // ---------- Sync info ----------
-                // const AppStatusCard(
-                //   title: 'تحديث البيانات ضمن الجهة فقط',
-                //   message:
-                //   'افتح مركز المزامنة للتحقق من آخر اتصال وتحديث ما '
-                //       'تسمح به صلاحيتك. لا تتضمن اللوحة أسر الجهات الأخرى '
-                //       'أو إشراف الشبكة المستقبلي.',
-                //   type: AppStatusType.success,
-                //   icon: Icons.lock_outline,
-                // ),
-                //
-                // const SizedBox(height: 16),
-                //
-                // AppButton(
-                //   text: 'فتح مركز المزامنة',
-                //   type: AppButtonType.secondary,
-                //   onPressed: () {},
-                // ),
+// ---------- Sync info ----------
+// const AppStatusCard(
+//   title: 'تحديث البيانات ضمن الجهة فقط',
+//   message:
+//   'افتح مركز المزامنة للتحقق من آخر اتصال وتحديث ما '
+//       'تسمح به صلاحيتك. لا تتضمن اللوحة أسر الجهات الأخرى '
+//       'أو إشراف الشبكة المستقبلي.',
+//   type: AppStatusType.success,
+//   icon: Icons.lock_outline,
+// ),
+//
+// const SizedBox(height: 16),
+//
+// AppButton(
+//   text: 'فتح مركز المزامنة',
+//   type: AppButtonType.secondary,
+//   onPressed: () {},
+// ),
               ],
             ),
           ),
         ),
         bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 0),
       ),
+    );
+  }
+}
+
+/// Live Firestore statistics scoped to the supervisor's organization.
+/// "Assistance operations" are assignment records, not confirmed deliveries.
+/// "Beneficiary families" counts distinct familyId values in those records.
+class _ManagerLiveStats extends StatelessWidget {
+  const _ManagerLiveStats({required this.organizationId});
+
+  final String organizationId;
+
+  String _arabicDigits(int number) {
+    const digits = '٠١٢٣٤٥٦٧٨٩';
+    return number.toString().split('').map((c) {
+      final digit = int.tryParse(c);
+      return digit == null ? c : digits[digit];
+    }).join();
+  }
+
+  Widget _stats({
+    required String families,
+    required String operations,
+    required String beneficiaries,
+    required String completed,
+  }) {
+    return Column(
+      children: [
+        _StatsRow(
+          first: HomeStat(value: families, label: 'أسرة مسجلة'),
+          second: HomeStat(value: operations, label: 'عملية مساعدة'),
+        ),
+        const SizedBox(height: 12),
+        _StatsRow(
+          first: HomeStat(value: beneficiaries, label: 'أسرة مستفيدة'),
+          second: HomeStat(value: completed, label: 'إحالة مكتملة'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (organizationId.isEmpty) {
+      return const AppStatusCard(
+        title: 'تعذر عرض الإحصائيات',
+        message: 'معرّف المؤسسة غير متوفر.',
+        type: AppStatusType.error,
+      );
+    }
+
+    final firestore = FirebaseFirestore.instance;
+    final organization = firestore.collection('organizations').doc(
+        organizationId);
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: organization.collection('families').snapshots(),
+      builder: (context, familiesSnapshot) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: organization.collection('assistanceAssignments').snapshots(),
+          builder: (context, assignmentsSnapshot) {
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: firestore.collection('referrals')
+                  .where('targetOrganizationId', isEqualTo: organizationId)
+                  .where('status', isEqualTo: 'completed')
+                  .snapshots(),
+              builder: (context, referralsSnapshot) {
+                if (familiesSnapshot.hasError || assignmentsSnapshot.hasError ||
+                    referralsSnapshot.hasError) {
+                  return const AppStatusCard(
+                    title: 'تعذر تحميل الإحصائيات',
+                    message: 'تحقق من الاتصال وصلاحيات قراءة بيانات المؤسسة والإحالات.',
+                    type: AppStatusType.error,
+                  );
+                }
+
+                if (!familiesSnapshot.hasData || !assignmentsSnapshot.hasData ||
+                    !referralsSnapshot.hasData) {
+                  return _stats(
+                    families: '—', operations: '—',
+                    beneficiaries: '—', completed: '—',
+                  );
+                }
+
+                final assignments = assignmentsSnapshot.data!.docs;
+                final beneficiaryIds = assignments
+                    .map((doc) => doc.data()['familyId'])
+                    .whereType<String>()
+                    .where((id) => id.isNotEmpty)
+                    .toSet();
+
+                final completedCount = referralsSnapshot.data!
+                    .docs
+                    .where(
+                      (doc) => doc.data()['status'] == 'completed',
+                )
+                    .length;
+
+                return _stats(
+                  families: _arabicDigits(familiesSnapshot.data!.docs.length),
+                  operations: _arabicDigits(assignments.length),
+                  beneficiaries: _arabicDigits(beneficiaryIds.length),
+                  completed: _arabicDigits(completedCount),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

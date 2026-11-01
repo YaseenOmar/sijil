@@ -23,6 +23,7 @@ class CloudFunctionsReferralRepository  {
   Stream<List<ReferralModel>> watchOutgoing({
     required String organizationId,
     String? areaId,
+    String? createdBy,
   }) {
     Query<Map<String, dynamic>> query = _referrals.where(
       'sourceOrganizationId',
@@ -31,6 +32,9 @@ class CloudFunctionsReferralRepository  {
 
     if (areaId != null) {
       query = query.where('areaId', isEqualTo: areaId);
+    }
+    if (createdBy != null) {
+      query = query.where('createdBy', isEqualTo: createdBy);
     }
 
     return query.snapshots().map(
@@ -43,6 +47,7 @@ class CloudFunctionsReferralRepository  {
 
   Stream<List<ReferralModel>> watchIncoming({
     required String organizationId,
+    bool employeeOnly = false,
   }) {
     return _referrals
         .where(
@@ -51,13 +56,15 @@ class CloudFunctionsReferralRepository  {
     )
         .where(
       'status',
-      whereIn: const [
-        'pending_target_approval',
-        'rejected_by_target',
-        'accepted',
-        'in_progress',
-        'completed',
-      ],
+      whereIn: employeeOnly
+          ? const ['accepted', 'in_progress', 'completed']
+          : const [
+              'pending_target_approval',
+              'rejected_by_target',
+              'accepted',
+              'in_progress',
+              'completed',
+            ],
     )
         .snapshots()
         .map(
@@ -304,6 +311,8 @@ class CloudFunctionsReferralRepository  {
       startedAt: _optionalDate(data['startedAt']),
       completedAt: _optionalDate(data['completedAt']),
       completedBy: data['completedBy'] as String?,
+      assignedTo: data['assignedTo'] as String?,
+      assignedAt: _optionalDate(data['assignedAt']),
       result: data['result'] as String?,
       resultNote: data['resultNote'] as String?,
       sharingConfirmed: data['sharingConfirmed'] as bool,

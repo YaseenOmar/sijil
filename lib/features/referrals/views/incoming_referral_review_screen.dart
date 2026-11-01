@@ -19,10 +19,12 @@ import '../widgets/referral_status_badge.dart';
 
 class IncomingReferralReviewScreen extends StatefulWidget {
   final ReferralModel referral;
+  final bool isSupervisor;
 
   const IncomingReferralReviewScreen({
     super.key,
     required this.referral,
+    this.isSupervisor = true,
   });
 
   @override
@@ -42,7 +44,7 @@ class _IncomingReferralReviewScreenState
     controllerTag = 'incoming_${widget.referral.id}';
 
     controller = Get.put(
-      IncomingReferralController(widget.referral),
+      IncomingReferralController(widget.referral, isSupervisor: widget.isSupervisor),
       tag: controllerTag,
     );
   }
@@ -63,7 +65,7 @@ class _IncomingReferralReviewScreenState
   @override
   Widget build(BuildContext context) {
     return ReferralFlowScaffold(
-      title: 'مراجعة إحالة واردة',
+      title: widget.isSupervisor ? 'مراجعة إحالة واردة' : 'تنفيذ إحالة واردة',
       breadcrumb: 'متابعة الإحالة',
       subtitleLine: 'المؤسسة المستقبلة',
       children: [
@@ -174,15 +176,26 @@ class _IncomingReferralReviewScreenState
 
         // ---------------- Actions by Status ----------------
 
-        if (referral.status ==
+        if (widget.isSupervisor && referral.status ==
             ReferralStatus.pendingTargetApproval)
           _buildDecisionSection(),
 
-        if (referral.status == ReferralStatus.accepted)
+        if (referral.status == ReferralStatus.accepted && !widget.isSupervisor)
           _buildStartServiceSection(),
 
-        if (referral.status == ReferralStatus.inProgress)
+        if (referral.status == ReferralStatus.inProgress &&
+            controller.canCompleteService)
           _buildCompleteServiceSection(),
+
+        if (referral.status == ReferralStatus.inProgress &&
+            !controller.canCompleteService)
+          AppStatusCard(
+            title: 'الخدمة قيد التنفيذ',
+            message: widget.isSupervisor
+                ? 'يتم تنفيذ هذه الخدمة بواسطة موظف المؤسسة.'
+                : 'هذه الخدمة قيد التنفيذ بواسطة موظف آخر.',
+            type: AppStatusType.info,
+          ),
 
         if (referral.status == ReferralStatus.completed)
           _buildCompletedSection(referral),

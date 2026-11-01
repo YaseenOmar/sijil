@@ -129,6 +129,9 @@ class ReferralsController extends GetxController {
         throw Exception('منطقة الموظف غير محددة');
       }
 
+      if (currentRole == 'field_worker') {
+        selectedIncomingFilter.value = ReferralOptions.filterAll;
+      }
       role.value = currentRole!;
       organizationId.value = currentOrg;
       areaId.value = currentArea ?? '';
@@ -142,6 +145,7 @@ class ReferralsController extends GetxController {
           _repository.watchOutgoing(
             organizationId: currentOrg,
             areaId: isFieldWorker ? currentArea : null,
+            createdBy: isFieldWorker ? user.uid : null,
           ).listen(
                 (items) {
               if (isClosed || version != _loadVersion) return;
@@ -159,13 +163,14 @@ class ReferralsController extends GetxController {
             },
           );
 
-      // Incoming referrals: supervisor only
-      if (isSupervisor) {
+      // Supervisor: all relevant incoming. Worker: accepted and later.
+      if (isSupervisor || isFieldWorker) {
         isLoadingIncoming.value = true;
 
         _incomingSubscription =
             _repository.watchIncoming(
               organizationId: currentOrg,
+              employeeOnly: isFieldWorker,
             ).listen(
                   (items) {
                 if (isClosed || version != _loadVersion) {
@@ -289,7 +294,7 @@ class ReferralsController extends GetxController {
   List<ReferralModel> get displayedIncoming {
     final items = filteredIncoming;
 
-    if (showAllIncoming.value || items.length <= 1) {
+    if (isFieldWorker || showAllIncoming.value || items.length <= 1) {
       return items;
     }
 
@@ -303,10 +308,6 @@ class ReferralsController extends GetxController {
   // ---------------- UI Actions ----------------
 
   void selectTab(int index) {
-    if (index == 1 && !isSupervisor) {
-      return;
-    }
-
     if (index == 0 || index == 1) {
       tabIndex.value = index;
     }
@@ -333,10 +334,11 @@ class ReferralsController extends GetxController {
   // ---------------- Navigation ----------------
 
   void openReferral(ReferralModel referral) {
-    if (tabIndex.value == 1 && isSupervisor) {
+    if (tabIndex.value == 1) {
       Get.to(
             () => IncomingReferralReviewScreen(
           referral: referral,
+          isSupervisor: isSupervisor,
         ),
       );
     } else {

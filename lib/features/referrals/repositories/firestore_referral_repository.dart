@@ -99,6 +99,24 @@ class FirestoreReferralRepository
     final eventRef =
     referralRef.collection('events').doc('created');
 
+    Future<void> testRead(
+        String name,
+        DocumentReference<Map<String, dynamic>> ref,
+        ) async {
+      try {
+        await ref.get(const GetOptions(source: Source.server));
+        print('✅ READ SUCCESS: $name');
+      } catch (e) {
+        print('❌ READ FAILED: $name');
+        print(e);
+      }
+    }
+
+    await testRead('FAMILY', familyRef);
+    await testRead('SOURCE DIRECTORY', sourceDirectoryRef);
+    await testRead('TARGET DIRECTORY', targetDirectoryRef);
+    await testRead('TARGET SERVICE', serviceRef);
+
     await _db.runTransaction((transaction) async {
       // All reads must come before writes.
       final familyDoc =
@@ -257,4 +275,132 @@ class FirestoreReferralRepository
 
     return referralRef.id;
   }
+
+  Future<Map<String, dynamic>> _actor() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('يرجى تسجيل الدخول');
+    final doc = await _db.collection('users').doc(uid).get();
+    final data = doc.data();
+    if (data == null || data['status'] != 'active') {
+      throw Exception('الحساب غير فعال');
+    }
+    return {...data, 'uid': uid};
+  }
+
+  Future<void> _changeStatus({
+    required String referralId,
+    required String expected,
+    required String next,
+    required bool supervisor,
+    required bool incoming,
+    String? reason,
+    String? result,
+    String? resultNote,
+  }) async {
+    final actor = await _actor();
+    final role = actor['role'];
+    if (supervisor && role != 'supervisor') {
+      throw Exception('هذه العملية للمشرف فقط');
+    }
+    if (!supervisor && role != 'field_worker') {
+      throw Exception('هذه العملية للموظف فقط');
+    }
+    final uid = actor['uid'] as String;
+    final orgId = actor['organizationId'] as String;
+    final ref = _db.collection('referrals').doc(referralId);
+    await _db.runTransaction((tx) async {
+      final doc = await tx.get(ref);
+      if (!doc.exists) throw Exception('الإحالة غير موجودة');
+      final data = doc.data()!;
+      final orgField = incoming ? 'targetOrganizationId' : 'sourceOrganizationId';
+      if (data[orgField] != orgId) throw Exception('الإحالة ليست تابعة لمؤسستك');
+      if (data['status'] != expected) {
+        throw Exception('تم تغيير حالة الإحالة، حدّث الصفحة');
+      }
+      if (expected == 'in_progress' && data['assignedTo'] != uid) {
+        throw Exception('هذه الخدمة يستكملها الموظف الذي بدأها فقط');
+      }
+      final patch = <String, dynamic>{
+        'status': next,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (expected == 'pending_source_approval') {
+        if (next == 'pending_target_approval') {
+          patch['sourceApprovedBy'] = uid;
+          patch['sourceApprovedAt'] = FieldValue.serverTimestamp();
+        } else {
+          patch['rejectionReason'] = reason;
+        }
+      } else if (expected == 'pending_target_approval') {
+        patch['targetReviewedBy'] = uid;
+        patch['targetReviewedAt'] = FieldValue.serverTimestamp();
+        if (next == 'rejected_by_target') patch['rejectionReason'] = reason;
+        if (next == 'accepted') patch['receivedFamilyId'] = referralId;
+      } else if (expected == 'accepted') {
+        patch['assignedTo'] = uid;
+        patch['assignedAt'] = FieldValue.serverTimestamp();
+        patch['startedAt'] = FieldValue.serverTimestamp();
+      } else if (expected == 'in_progress') {
+        patch['completedBy'] = uid;
+        patch['completedAt'] = FieldValue.serverTimestamp();
+        patch['result'] = result;
+        patch['resultNote'] = resultNote;
+      }
+      if (next == 'accepted') {
+        final receivedRef = _db.collection('organizations').doc(orgId)
+            .collection('receivedFamilies').doc(referralId);
+        final family = Map<String, dynamic>.from(data['familySnapshot'] as Map);
+        // All reads happen before writes.
+        final oldFamily = await tx.get(receivedRef);
+        if (!oldFamily.exists) {
+          tx.set(receivedRef, {
+            'sourceOrganizationId': data['sourceOrganizationId'],
+            'sourceFamilyId': data['sourceFamilyId'],
+            'targetOrganizationId': orgId,
+            'headName': family['headName'],
+            'membersCount': family['membersCount'],
+            'phoneNumber': family['phoneNumber'],
+            'address': family['address'],
+            'areaId': data['areaId'],
+            'firstReferralId': referralId,
+            'receivedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      tx.update(ref, patch);
+    });
+  }
+
+  @override
+  Future<void> approveOutgoing(String referralId) => _changeStatus(
+    referralId: referralId, expected: 'pending_source_approval',
+    next: 'pending_target_approval', supervisor: true, incoming: false);
+
+  @override
+  Future<void> rejectOutgoing({required String referralId, required String reason}) => _changeStatus(
+    referralId: referralId, expected: 'pending_source_approval',
+    next: 'rejected_by_source', supervisor: true, incoming: false, reason: reason);
+
+  @override
+  Future<void> acceptIncoming(String referralId) => _changeStatus(
+    referralId: referralId, expected: 'pending_target_approval',
+    next: 'accepted', supervisor: true, incoming: true);
+
+  @override
+  Future<void> rejectIncoming({required String referralId, required String reason}) => _changeStatus(
+    referralId: referralId, expected: 'pending_target_approval',
+    next: 'rejected_by_target', supervisor: true, incoming: true, reason: reason);
+
+  @override
+  Future<void> startService(String referralId) => _changeStatus(
+    referralId: referralId, expected: 'accepted',
+    next: 'in_progress', supervisor: false, incoming: true);
+
+  @override
+  Future<void> completeService({required String referralId, required String result, String? resultNote}) => _changeStatus(
+    referralId: referralId, expected: 'in_progress',
+    next: 'completed', supervisor: false, incoming: true,
+    result: result, resultNote: resultNote);
+
 }
