@@ -60,7 +60,7 @@ class FamilyCreationController extends GetxController {
   // Step 2: Housing and Needs
   // ==========================================
 
-  String areaId = FamilyOptions.defaultAreaId;
+  String areaId = '';
 
   // The displayed name is loaded from Firestore.
   final areaNameController = TextEditingController();

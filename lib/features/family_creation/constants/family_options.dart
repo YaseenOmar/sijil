@@ -1,6 +1,4 @@
-import 'package:sijil/core/constants/demo_context.dart';
 
-// Static choices used by the family creation flow
 class FamilyOptions {
   FamilyOptions._();
 
@@ -22,10 +20,11 @@ class FamilyOptions {
   ];
 
   // Temporary area names until areas come from Firestore
-  static const Map<String, String> _areaNames = {'area_001': 'حي النور'};
+  static const Map<String, String> _areaNames = {
+    'area_001': 'حي النور',
+  };
 
-  static String areaName(String areaId) => _areaNames[areaId] ?? areaId;
-
-  // Area used for the new family (first assigned area to the employee)
-  static String get defaultAreaId => DemoContext.assignedAreaIds.first;
+  static String areaName(String areaId) {
+    return _areaNames[areaId] ?? areaId;
+  }
 }

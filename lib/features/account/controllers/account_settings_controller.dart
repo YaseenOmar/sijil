@@ -203,16 +203,7 @@ class AccountSettingsController extends GetxController {
     Get.dialog(
       AlertDialog(
         title: const Text('تسجيل الخروج'),
-        content: Text(
-          pendingOperations.value > 0
-              ? 'لديك ${pendingOperations.value} عمليات '
-              'غير متزامنة.\n\n'
-              'سيتم الاحتفاظ بالبيانات المحلية، '
-              'لكنها لن تُزامن حتى تسجل الدخول '
-              'مرة أخرى بالحساب المناسب.\n\n'
-              'هل تريد تسجيل الخروج؟'
-              : 'هل أنت متأكد من تسجيل الخروج؟',
-        ),
+        content: Text('هل أنت متأكد من تسجيل الخروج؟',),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
