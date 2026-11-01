@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AssistanceEligibilityModel {
   final String id;
   final String familyId;
-  final String assistanceId;
+  final String serviceId;
   final String lastAssignmentId;
   final DateTime lastAssignedAt;
   final DateTime nextEligibleAt;
@@ -12,7 +12,7 @@ class AssistanceEligibilityModel {
   const AssistanceEligibilityModel({
     required this.id,
     required this.familyId,
-    required this.assistanceId,
+    required this.serviceId,
     required this.lastAssignmentId,
     required this.lastAssignedAt,
     required this.nextEligibleAt,
@@ -29,26 +29,41 @@ class AssistanceEligibilityModel {
       );
     }
 
+    final lastAssignedAtValue =
+    data['lastAssignedAt'];
+
+    final nextEligibleAtValue =
+    data['nextEligibleAt'];
+
+    if (lastAssignedAtValue is! Timestamp ||
+        nextEligibleAtValue is! Timestamp) {
+      throw StateError(
+        'Invalid eligibility dates: ${doc.id}',
+      );
+    }
+
     return AssistanceEligibilityModel(
       id: doc.id,
-      familyId: data['familyId'] as String,
-      assistanceId: data['assistanceId'] as String,
+      familyId: data['familyId'] as String? ?? '',
+      serviceId: data['serviceId'] as String? ?? '',
       lastAssignmentId:
-      data['lastAssignmentId'] as String,
+      data['lastAssignmentId'] as String? ?? '',
       lastAssignedAt:
-      (data['lastAssignedAt'] as Timestamp).toDate(),
+      lastAssignedAtValue.toDate(),
       nextEligibleAt:
-      (data['nextEligibleAt'] as Timestamp).toDate(),
+      nextEligibleAtValue.toDate(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'familyId': familyId,
-      'assistanceId': assistanceId,
+      'serviceId': serviceId,
       'lastAssignmentId': lastAssignmentId,
-      'lastAssignedAt': Timestamp.fromDate(lastAssignedAt),
-      'nextEligibleAt': Timestamp.fromDate(nextEligibleAt),
+      'lastAssignedAt':
+      Timestamp.fromDate(lastAssignedAt),
+      'nextEligibleAt':
+      Timestamp.fromDate(nextEligibleAt),
     };
   }
 
@@ -58,18 +73,35 @@ class AssistanceEligibilityModel {
     );
   }
 
+  bool isWithinCooldownAt(DateTime date) {
+    return !isEligibleAt(date);
+  }
+
   Duration remainingCooldownAt(DateTime date) {
-    final remaining = nextEligibleAt.toUtc().difference(
+    final remaining =
+    nextEligibleAt.toUtc().difference(
       date.toUtc(),
     );
 
-    return remaining.isNegative ? Duration.zero : remaining;
+    return remaining.isNegative
+        ? Duration.zero
+        : remaining;
+  }
+
+  int remainingDaysAt(DateTime date) {
+    final remaining = remainingCooldownAt(date);
+
+    if (remaining == Duration.zero) {
+      return 0;
+    }
+
+    return (remaining.inSeconds / 86400).ceil();
   }
 
   AssistanceEligibilityModel copyWith({
     String? id,
     String? familyId,
-    String? assistanceId,
+    String? serviceId,
     String? lastAssignmentId,
     DateTime? lastAssignedAt,
     DateTime? nextEligibleAt,
@@ -77,7 +109,7 @@ class AssistanceEligibilityModel {
     return AssistanceEligibilityModel(
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
-      assistanceId: assistanceId ?? this.assistanceId,
+      serviceId: serviceId ?? this.serviceId,
       lastAssignmentId:
       lastAssignmentId ?? this.lastAssignmentId,
       lastAssignedAt:

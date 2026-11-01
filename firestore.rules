@@ -1,0 +1,1352 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // 1. Authentication
+    // ==========================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ==========================================
+    // 2. Paths
+    // ==========================================
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function targetUserPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function employeePath(orgId, employeeId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/employees/$(employeeId);
+    }
+
+    function areaPath(orgId, areaId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/areas/$(areaId);
+    }
+
+    function familyPath(orgId, familyId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/families/$(familyId);
+    }
+
+    function nationalIdPath(orgId, nationalId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/familyNationalIds/$(nationalId);
+    }
+
+    function referralPath(referralId) {
+      return /databases/$(database)/documents/referrals/$(referralId);
+    }
+
+    function referralDirectoryPath(orgId) {
+      return /databases/$(database)/documents/referralDirectory/$(orgId);
+    }
+
+    function servicePath(orgId, serviceId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/services/$(serviceId);
+    }
+
+    function referralEventPath(referralId, eventId) {
+      return /databases/$(database)/documents/referrals/$(referralId)/events/$(eventId);
+    }
+
+    function userExists() {
+      return isSignedIn() && exists(userPath());
+    }
+
+    function userData() {
+      return get(userPath()).data;
+    }
+
+    // ==========================================
+    // 3. Roles and Membership
+    // ==========================================
+
+    function isSupervisor(orgId) {
+      return userExists()
+        && userData().role == 'supervisor'
+        && userData().status == 'active'
+        && userData().organizationId == orgId;
+    }
+
+    function isFieldWorker(orgId) {
+      return userExists()
+        && userData().role == 'field_worker'
+        && userData().status == 'active'
+        && userData().organizationId == orgId;
+    }
+
+    function workerArea () {
+      return userData().areaId;
+    }
+
+    function isMember(orgId) {
+      return isSupervisor(orgId)
+        || isFieldWorker(orgId);
+    }
+
+    function isActiveMember(orgId) {
+      return isSignedIn() && isMember(orgId);
+    }
+
+    function isAnyActiveMember() {
+      return isSignedIn()
+        && userExists()
+        && userData().status == 'active'
+        && userData().role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && userData().organizationId is string;
+    }
+
+    function canAccessArea(orgId, areaId) {
+      return isActiveMember(orgId)
+        && (
+          isSupervisor(orgId)
+          || (
+            isFieldWorker(orgId)
+            && areaId == workerArea()
+          )
+        );
+    }
+
+    function canReadFamily(orgId) {
+      return canAccessArea(
+        orgId,
+        resource.data.areaId
+      );
+    }
+
+    function canManageOwnFamily(orgId) {
+      return isFieldWorker(orgId)
+        && resource.data.organizationId == orgId
+        && resource.data.createdBy == request.auth.uid
+        && resource.data.areaId == workerArea();
+    }
+
+    // ==========================================
+    // 4. Family Validation
+    // ==========================================
+
+    function validFamilyCreation(orgId) {
+      return request.resource.data.keys().hasAll([
+          'headName',
+          'nationalId',
+          'areaId',
+          'organizationId',
+          'createdBy'
+        ])
+        && request.resource.data.headName is string
+        && request.resource.data.headName.size() > 0
+        && request.resource.data.nationalId is string
+        && request.resource.data.nationalId.size() > 0
+        && request.resource.data.areaId is string
+        && request.resource.data.areaId.size() > 0
+        && request.resource.data.organizationId == orgId
+        && request.resource.data.createdBy == request.auth.uid;
+    }
+
+    function validFamilyUpdate(orgId) {
+      return request.resource.data.organizationId == orgId
+        && request.resource.data.organizationId ==
+          resource.data.organizationId
+        && request.resource.data.createdBy ==
+          resource.data.createdBy
+        && request.resource.data.nationalId ==
+          resource.data.nationalId
+        && request.resource.data.areaId is string
+        && request.resource.data.areaId.size() > 0;
+    }
+
+    function validFamilyReservation(orgId, familyId) {
+      let nationalId = request.resource.data.nationalId;
+      let reservation = getAfter(
+        nationalIdPath(orgId, nationalId)
+      );
+
+      return !exists(nationalIdPath(orgId, nationalId))
+        && reservation != null
+        && reservation.data.familyId == familyId
+        && reservation.data.nationalId == nationalId
+        && reservation.data.createdBy == request.auth.uid;
+    }
+
+    function validNationalIdCreation(orgId, nationalId) {
+      let familyId = request.resource.data.familyId;
+      let family = getAfter(
+        familyPath(orgId, familyId)
+      );
+
+      return !exists(familyPath(orgId, familyId))
+        && family != null
+        && family.data.nationalId == nationalId
+        && family.data.organizationId == orgId
+        && family.data.createdBy == request.auth.uid
+        && canAccessArea(
+          orgId,
+          family.data.areaId
+        );
+    }
+
+
+    // ==========================================
+    // Assistance Transaction Validation
+    // ==========================================
+
+    function assignmentPath(orgId, assignmentId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/assistanceAssignments/$(assignmentId);
+    }
+
+    function eligibilityPath(orgId, familyId, serviceId) {
+      return /databases/$(database)/documents/organizations/$(orgId)/assistanceEligibility/$(familyId)/services/$(serviceId);
+    }
+
+    // The client clock must be close to server time.
+    // The server's request.time determines whether
+    // an existing cooldown has expired.
+    function validAssignmentTime(data) {
+      return data.assignedAt is timestamp
+        && data.assignedAt >=
+          request.time - duration.value(2, 'm')
+        && data.assignedAt <=
+          request.time + duration.value(2, 'm');
+    }
+
+    function validCooldownDates(
+      serviceData,
+      assignedAt,
+      nextEligibleAt
+    ) {
+      return serviceData.hasCooldown is bool
+        && serviceData.cooldownDays is int
+        && serviceData.cooldownDays >= 0
+        && serviceData.cooldownDays <= 36500
+        && (
+          (
+            serviceData.hasCooldown == true
+            && serviceData.cooldownDays > 0
+            && nextEligibleAt ==
+              assignedAt + duration.value(
+                serviceData.cooldownDays,
+                'd'
+              )
+          )
+          || (
+            serviceData.hasCooldown == false
+            && serviceData.cooldownDays == 0
+            && nextEligibleAt == assignedAt
+          )
+        );
+    }
+
+    // Existing cooldown must have expired.
+    // No cooldown means repeated assignments
+    // are allowed by the service configuration.
+    function previousCooldownFinished(
+      orgId,
+      familyId,
+      serviceId,
+      serviceData
+    ) {
+      let path = eligibilityPath(
+        orgId,
+        familyId,
+        serviceId
+      );
+
+      return serviceData.hasCooldown == false
+        || !exists(path)
+        || (
+          get(path).data.nextEligibleAt is timestamp
+          && get(path).data.nextEligibleAt <=
+            request.time
+        );
+    }
+
+    function validAssistanceAssignmentCreate(
+      orgId,
+      assignmentId
+    ) {
+      let data = request.resource.data;
+
+      let serviceData = get(
+        servicePath(orgId, data.serviceId)
+      ).data;
+
+      let family = get(
+        familyPath(orgId, data.familyId)
+      ).data;
+
+      let eligibility = getAfter(
+        eligibilityPath(
+          orgId,
+          data.familyId,
+          data.serviceId
+        )
+      ).data;
+
+      return isActiveMember(orgId)
+
+        // Required fields
+        && data.keys().hasAll([
+          'organizationId',
+          'serviceId',
+          'familyId',
+          'areaId',
+          'assignedBy',
+          'assignedAt',
+          'nextEligibleAt',
+          'status',
+          'notes'
+        ])
+
+        // No additional arbitrary fields
+        && data.keys().hasOnly([
+          'organizationId',
+          'serviceId',
+          'familyId',
+          'areaId',
+          'assignedBy',
+          'assignedAt',
+          'nextEligibleAt',
+          'status',
+          'notes'
+        ])
+
+        // Organization
+        && data.organizationId == orgId
+
+        // Service identity
+        && data.serviceId is string
+        && data.serviceId.size() > 0
+
+        // Family identity
+        && data.familyId is string
+        && data.familyId.size() > 0
+
+        // Area identity
+        && data.areaId is string
+
+        // Actor identity
+        && data.assignedBy == request.auth.uid
+
+        // New assignments start as assigned
+        && data.status == 'assigned'
+
+        // Notes validation
+        && data.notes is string
+        && data.notes.size() <= 500
+
+        // Time validation
+        && validAssignmentTime(data)
+
+        // Service validation
+        && serviceData.organizationId == orgId
+        && serviceData.isActive == true
+
+        // Family validation
+        && family.organizationId == orgId
+        && family.areaId == data.areaId
+
+        // Supervisor: all organization families
+        // Worker: own area only
+        && canAccessArea(
+          orgId,
+          family.areaId
+        )
+
+        // Check previous cooldown using server time
+        && previousCooldownFinished(
+          orgId,
+          data.familyId,
+          data.serviceId,
+          serviceData
+        )
+
+        // Assignment's own cooldown date
+        && (
+          (
+            serviceData.hasCooldown == true
+            && data.nextEligibleAt ==
+              data.assignedAt + duration.value(
+                serviceData.cooldownDays,
+                'd'
+              )
+          )
+          || (
+            serviceData.hasCooldown == false
+            && serviceData.cooldownDays == 0
+            && data.nextEligibleAt == null
+          )
+        )
+
+        // Eligibility must reference this
+        // assignment after the transaction
+        && eligibility.familyId == data.familyId
+        && eligibility.serviceId == data.serviceId
+        && eligibility.lastAssignmentId ==
+          assignmentId
+        && eligibility.lastAssignedAt ==
+          data.assignedAt
+
+        // Validate the eligibility expiry
+        && validCooldownDates(
+          serviceData,
+          data.assignedAt,
+          eligibility.nextEligibleAt
+        );
+    }
+
+    function validEligibilityWrite(
+      orgId,
+      familyId,
+      serviceId
+    ) {
+      let data = request.resource.data;
+
+      let serviceData = get(
+        servicePath(orgId, serviceId)
+      ).data;
+
+      let assignmentId = data.lastAssignmentId;
+
+      let assignmentRef = assignmentPath(
+        orgId,
+        assignmentId
+      );
+
+      let assignment = getAfter(
+        assignmentRef
+      ).data;
+
+      return isActiveMember(orgId)
+
+        // Required fields
+        && data.keys().hasAll([
+          'familyId',
+          'serviceId',
+          'lastAssignmentId',
+          'lastAssignedAt',
+          'nextEligibleAt'
+        ])
+
+        && data.keys().hasOnly([
+          'familyId',
+          'serviceId',
+          'lastAssignmentId',
+          'lastAssignedAt',
+          'nextEligibleAt'
+        ])
+
+        // Path identity
+        && data.familyId == familyId
+        && data.serviceId == serviceId
+
+        // Assignment identity
+        && assignmentId is string
+        && assignmentId.size() > 0
+        && !assignmentId.matches('.*[/].*')
+
+        // Assignment must be newly created
+        && !exists(assignmentRef)
+
+        // The assignment must exist
+        // after this same transaction
+        && assignment.familyId == familyId
+        && assignment.serviceId == serviceId
+        && assignment.organizationId == orgId
+        && assignment.assignedBy == request.auth.uid
+        && assignment.status == 'assigned'
+
+        // Same assignment timestamp
+        && assignment.assignedAt ==
+          data.lastAssignedAt
+
+        && validAssignmentTime(
+          assignment
+        )
+
+        // Service validation
+        && serviceData.organizationId == orgId
+        && serviceData.isActive == true
+
+        // Match configured cooldown
+        && validCooldownDates(
+          serviceData,
+          data.lastAssignedAt,
+          data.nextEligibleAt
+        )
+
+        // No early overwrite during cooldown
+        && previousCooldownFinished(
+          orgId,
+          familyId,
+          serviceId,
+          serviceData
+        );
+    }
+
+    // ==========================================
+    // 5. User Account Validation
+    // ==========================================
+
+    function validNewEmployee(data) {
+      let invitePath = employeePath(
+        data.organizationId,
+        data.invitationId
+      );
+
+      return exists(invitePath)
+        && !existsAfter(invitePath)
+        && validInvitationMatchesUser(
+          get(invitePath).data,
+          data
+        );
+    }
+
+    function validInvitationMatchesUser(invite, data) {
+      return invite.status == 'pending'
+        && invite.get('uid', null) == null
+        && invite.email == data.email
+        && invite.fullName == data.fullName
+        && invite.role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && data.role == invite.role
+        && invite.areaId == data.areaId
+        && invite.organizationId == data.organizationId
+        && invite.createdAt == data.createdAt
+        && data.status == 'active';
+    }
+
+    function validSupervisorUserUpdate(userId) {
+      return isSignedIn()
+        && request.auth.uid != userId
+        && isSupervisor(resource.data.organizationId)
+        && resource.data.organizationId ==
+          userData().organizationId
+        && resource.data.status in [
+          'active',
+          'inactive'
+        ]
+        && resource.data.role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly([
+            'fullName',
+            'role',
+            'status',
+            'areaId'
+          ])
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() > 0
+        && request.resource.data.role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && request.resource.data.status in [
+          'active',
+          'inactive'
+        ]
+        && request.resource.data.areaId is string
+        && (
+          request.resource.data.role == 'supervisor'
+          || (
+            request.resource.data.areaId.size() > 0
+            && exists(
+              areaPath(
+                resource.data.organizationId,
+                request.resource.data.areaId
+              )
+            )
+          )
+        );
+    }
+
+    // ==========================================
+    // 6. User Accounts
+    // ==========================================
+
+    match /users/{userId} {
+
+      allow get: if (
+          isSignedIn()
+          && request.auth.uid == userId
+        )
+        || (
+          userExists()
+          && isSupervisor(userData().organizationId)
+          && resource.data.organizationId ==
+            userData().organizationId
+        );
+
+      allow list: if userExists()
+        && isSupervisor(userData().organizationId)
+        && resource.data.organizationId ==
+          userData().organizationId;
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && !exists(targetUserPath(userId))
+        && request.resource.data.keys().hasAll([
+          'fullName',
+          'email',
+          'role',
+          'areaId',
+          'organizationId',
+          'invitationId',
+          'status',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'fullName',
+          'email',
+          'role',
+          'areaId',
+          'organizationId',
+          'invitationId',
+          'status',
+          'createdAt'
+        ])
+        && request.resource.data.role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && request.resource.data.status == 'active'
+        && request.resource.data.email ==
+          request.auth.token.email
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() > 0
+        && request.resource.data.organizationId is string
+        && request.resource.data.organizationId.size() > 0
+        && request.resource.data.invitationId is string
+        && request.resource.data.invitationId.size() > 0
+        && request.resource.data.areaId is string
+        && request.resource.data.areaId.size() > 0
+        && validNewEmployee(
+          request.resource.data
+        );
+
+      allow update: if validSupervisorUserUpdate(userId);
+
+      allow delete: if false;
+    }
+
+    // ==========================================
+    // 7. Invitation Validation
+    // ==========================================
+
+    function validInvitationAcceptance(orgId, employeeId) {
+      let newUserPath = targetUserPath(
+        request.auth.uid
+      );
+      let newUser = getAfter(newUserPath).data;
+
+      return isSignedIn()
+        && resource.data.status == 'pending'
+        && resource.data.get('uid', null) == null
+        && resource.data.organizationId == orgId
+        && resource.data.email ==
+          request.auth.token.email
+        && !exists(newUserPath)
+        && existsAfter(newUserPath)
+        && newUser.invitationId == employeeId
+        && newUser.organizationId == orgId
+        && newUser.email == resource.data.email
+        && newUser.fullName == resource.data.fullName
+        && resource.data.role in [
+          'field_worker',
+          'supervisor'
+        ]
+        && newUser.role == resource.data.role
+        && newUser.areaId == resource.data.areaId
+        && newUser.createdAt == resource.data.createdAt
+        && newUser.status == 'active';
+    }
+
+    // ==========================================
+    // 8. Organizations
+    // ==========================================
+
+    match /organizations/{orgId} {
+
+      allow get: if isMember(orgId);
+
+      allow list, create, update, delete: if false;
+
+      // ========================================
+      // 8.1 Areas
+      // ========================================
+
+      match /areas/{areaId} {
+
+        allow get: if isSupervisor(orgId)
+          || (
+            isFieldWorker(orgId)
+            && areaId == workerArea()
+          );
+
+        allow list: if isSupervisor(orgId);
+
+        allow create, update, delete: if false;
+      }
+
+      // ========================================
+      // 8.2 Families
+      // ========================================
+
+      match /families/{familyId} {
+
+        allow get, list: if canReadFamily(orgId);
+
+        allow create: if isActiveMember(orgId)
+          && validFamilyCreation(orgId)
+          && canAccessArea(
+            orgId,
+            request.resource.data.areaId
+          )
+          && validFamilyReservation(
+            orgId,
+            familyId
+          );
+
+        allow update: if isActiveMember(orgId)
+          && (
+            isSupervisor(orgId)
+            || (
+              canManageOwnFamily(orgId)
+              && request.resource.data.areaId ==
+                workerArea()
+            )
+          )
+          && validFamilyUpdate(orgId);
+
+        allow delete: if false;
+      }
+
+      // ========================================
+      // 8.3 Family National IDs
+      // ========================================
+
+      match /familyNationalIds/{nationalId} {
+
+        allow get: if isActiveMember(orgId);
+
+        allow list: if false;
+
+        allow create: if isActiveMember(orgId)
+          && request.resource.data.keys().hasAll([
+            'familyId',
+            'nationalId',
+            'createdBy',
+            'createdByName',
+            'createdAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'familyId',
+            'nationalId',
+            'createdBy',
+            'createdByName',
+            'createdAt'
+          ])
+          && request.resource.data.familyId is string
+          && request.resource.data.familyId.size() > 0
+          && request.resource.data.nationalId == nationalId
+          && nationalId.size() > 0
+          && request.resource.data.createdBy ==
+            request.auth.uid
+          && request.resource.data.createdByName ==
+            userData().fullName
+          && request.resource.data.createdAt ==
+            request.time
+          && validNationalIdCreation(
+            orgId,
+            nationalId
+          );
+
+        allow update, delete: if false;
+      }
+
+      // ========================================
+      // 8.4 Employees / Pending Invitations
+      // ========================================
+
+      match /employees/{employeeId} {
+
+        allow get: if isSupervisor(orgId)
+          || (
+            isSignedIn()
+            && resource.data.status == 'pending'
+            && resource.data.organizationId == orgId
+            && resource.data.email ==
+              request.auth.token.email
+          );
+
+        allow list: if isSupervisor(orgId);
+
+        allow create: if isSupervisor(orgId)
+          && request.resource.data.keys().hasAll([
+            'fullName',
+            'email',
+            'role',
+            'areaId',
+            'organizationId',
+            'createdBy',
+            'status',
+            'createdAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'fullName',
+            'email',
+            'role',
+            'areaId',
+            'organizationId',
+            'createdBy',
+            'status',
+            'createdAt',
+            'uid'
+          ])
+          && request.resource.data.organizationId == orgId
+          && request.resource.data.createdBy ==
+            request.auth.uid
+          && request.resource.data.role in [
+            'field_worker',
+            'supervisor'
+          ]
+          && request.resource.data.status == 'pending'
+          && request.resource.data.get('uid', null) == null
+          && request.resource.data.fullName is string
+          && request.resource.data.fullName.size() > 0
+          && request.resource.data.email is string
+          && request.resource.data.email.size() > 3
+          && request.resource.data.areaId is string
+          && request.resource.data.areaId.size() > 0
+          && exists(
+            areaPath(
+              orgId,
+              request.resource.data.areaId
+            )
+          )
+          && request.resource.data.createdAt is timestamp;
+
+        allow update: if isSupervisor(orgId)
+          && resource.data.organizationId == orgId
+          && resource.data.status == 'pending'
+          && resource.data.role in [
+            'field_worker',
+            'supervisor'
+          ]
+          && request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly([
+              'fullName',
+              'areaId'
+            ])
+          && request.resource.data.fullName is string
+          && request.resource.data.fullName.size() > 0
+          && request.resource.data.areaId is string
+          && request.resource.data.areaId.size() > 0
+          && exists(
+            areaPath(
+              orgId,
+              request.resource.data.areaId
+            )
+          );
+
+        allow delete: if (
+          isSupervisor(orgId)
+          && resource.data.organizationId == orgId
+          && resource.data.status == 'pending'
+        ) || validInvitationAcceptance(
+          orgId,
+          employeeId
+        );
+      }
+
+      // ========================================
+      // 8.5 Services Catalog
+      // ========================================
+
+      match /services/{serviceId} {
+
+        // Members read their own organization's services.
+        // Other members see services open for referrals.
+
+        allow get, list: if isActiveMember(orgId)
+          || (
+            isAnyActiveMember()
+            && resource.data.isActive == true
+            && resource.data.acceptsReferrals == true
+          );
+
+        allow create: if isSupervisor(orgId)
+          && request.resource.data.keys().hasAll([
+            'name',
+            'description',
+            'category',
+            'unit',
+            'isActive',
+            'acceptsReferrals',
+            'hasCooldown',
+            'cooldownDays',
+            'cooldownReason',
+            'organizationId',
+            'createdBy',
+            'createdAt',
+            'updatedAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'name',
+            'description',
+            'category',
+            'unit',
+            'isActive',
+            'acceptsReferrals',
+            'hasCooldown',
+            'cooldownDays',
+            'cooldownReason',
+            'organizationId',
+            'createdBy',
+            'createdAt',
+            'updatedAt'
+          ])
+          && validServiceData()
+          && request.resource.data.organizationId == orgId
+          && request.resource.data.createdBy ==
+            request.auth.uid
+          && request.resource.data.createdAt ==
+            request.time
+          && request.resource.data.updatedAt ==
+            request.time;
+
+        allow update: if isSupervisor(orgId)
+          && resource.data.organizationId == orgId
+          && request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly([
+              'name',
+              'description',
+              'category',
+              'unit',
+              'isActive',
+              'acceptsReferrals',
+              'hasCooldown',
+              'cooldownDays',
+              'cooldownReason',
+              'updatedAt'
+            ])
+          && validServiceData()
+          && request.resource.data.organizationId ==
+            resource.data.organizationId
+          && request.resource.data.createdBy ==
+            resource.data.createdBy
+          && request.resource.data.createdAt ==
+            resource.data.createdAt
+          && request.resource.data.updatedAt ==
+            request.time;
+
+        allow delete: if false;
+      }
+
+      // ========================================
+      // 8.6 Assistance Assignments
+      // ========================================
+
+
+      // ========================================
+      // 8.6 Assistance Assignments
+      // ========================================
+
+
+match /assistanceAssignments/{assignmentId} {
+
+  // Read one assignment.
+  // Allow checking if a document does not yet exist.
+  allow get: if isActiveMember(orgId)
+    && (
+      isSupervisor(orgId)
+      || (
+        isFieldWorker(orgId)
+        && (
+          !exists(
+            assignmentPath(orgId, assignmentId)
+          )
+          || resource.data.areaId == workerArea()
+        )
+      )
+    );
+
+  // Listing assignments remains area-restricted.
+  allow list: if isActiveMember(orgId)
+    && (
+      isSupervisor(orgId)
+      || (
+        isFieldWorker(orgId)
+        && resource.data.areaId == workerArea()
+      )
+    );
+
+  // Validated atomic assignment creation.
+  allow create: if validAssistanceAssignmentCreate(
+    orgId,
+    assignmentId
+  );
+
+  allow update, delete: if false;
+}
+
+
+      // ========================================
+      // 8.7 Assistance Eligibility
+      // ========================================
+
+      match /assistanceEligibility/{familyId} {
+
+        // Parent documents cannot be accessed.
+        allow read, write: if false;
+
+        match /services/{serviceId} {
+
+          // A member can view eligibility only
+          // for an accessible family.
+          allow get: if isActiveMember(orgId)
+            && exists(
+              familyPath(orgId, familyId)
+            )
+            && canAccessArea(
+              orgId,
+              get(
+                familyPath(orgId, familyId)
+              ).data.areaId
+            );
+
+          allow list: if false;
+
+          // Eligibility can be created only alongside
+          // a valid new assignment.
+          allow create: if validEligibilityWrite(
+            orgId,
+            familyId,
+            serviceId
+          );
+
+          // The same restrictions apply to updates.
+          allow update: if validEligibilityWrite(
+            orgId,
+            familyId,
+            serviceId
+          );
+
+          // No direct deletion.
+          allow delete: if false;
+        }
+      }
+
+
+      // ========================================
+      // 8.8 Assistance Requests
+      // ========================================
+
+      match /assistanceRequests/{requestId} {
+        allow read, write: if false;
+      }
+
+      // ========================================
+      // 8.9 Received Families
+      // ========================================
+
+      match /receivedFamilies/{receivedFamilyId} {
+
+        allow get, list: if isActiveMember(orgId)
+          && isSupervisor(orgId);
+
+        allow create, update, delete: if false;
+      }
+    }
+
+    // ==========================================
+    // 9. Service Data Validation
+    // ==========================================
+
+    function validServiceData() {
+      let data = request.resource.data;
+
+      return data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 150
+        && data.description is string
+        && data.description.size() > 0
+        && data.description.size() <= 1000
+        && data.category is string
+        && data.category.size() > 0
+        && data.category.size() <= 100
+        && data.unit is string
+        && data.unit.size() <= 100
+        && data.isActive is bool
+        && data.acceptsReferrals is bool
+        && data.hasCooldown is bool
+        && data.organizationId is string
+        && data.organizationId.size() > 0
+        && data.createdBy is string
+        && data.createdBy.size() > 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.cooldownDays is int
+        && data.cooldownDays >= 0
+        && data.cooldownDays <= 36500
+        && (
+          data.cooldownReason == null
+          || (
+            data.cooldownReason is string
+            && data.cooldownReason.size() <= 500
+          )
+        )
+        && (
+          (
+            data.hasCooldown == true
+            && data.cooldownDays > 0
+            && data.cooldownReason is string
+            && data.cooldownReason.size() > 0
+          )
+          || (
+            data.hasCooldown == false
+            && data.cooldownDays == 0
+            && (
+              data.cooldownReason == null
+              || data.cooldownReason == ''
+            )
+          )
+        );
+    }
+
+    // ==========================================
+    // 10. Referral Permissions
+    // ==========================================
+
+    function canReadOutgoingReferral(data) {
+      return isActiveMember(data.sourceOrganizationId)
+        && (
+          isSupervisor(data.sourceOrganizationId)
+          || (
+            isFieldWorker(data.sourceOrganizationId)
+            && data.areaId ==
+              workerArea()
+          )
+        );
+    }
+
+    function canReadIncomingReferral(data) {
+      return isActiveMember(data.targetOrganizationId)
+        && isSupervisor(data.targetOrganizationId)
+        && data.status in [
+          'pending_target_approval',
+          'rejected_by_target',
+          'accepted',
+          'in_progress',
+          'completed'
+        ];
+    }
+
+    function canReadReferral(data) {
+      return canReadOutgoingReferral(data)
+        || canReadIncomingReferral(data);
+    }
+
+    // ==========================================
+    // 10.1 Direct Firestore referral creation
+    // ==========================================
+
+    function validReferralCreation(referralId) {
+      let data = request.resource.data;
+      let family = get(familyPath(data.sourceOrganizationId, data.sourceFamilyId)).data;
+      let source = get(referralDirectoryPath(data.sourceOrganizationId)).data;
+      let target = get(referralDirectoryPath(data.targetOrganizationId)).data;
+      let targetService  = get(servicePath(data.targetOrganizationId, data.targetServiceId)).data;
+      let initialEvent = getAfter(referralEventPath(referralId, 'created'));
+
+      return isSignedIn()
+        && isActiveMember(data.sourceOrganizationId)
+        && data.sourceOrganizationId != data.targetOrganizationId
+        && data.keys().hasAll([
+          'number', 'sourceOrganizationId', 'targetOrganizationId',
+          'sourceOrganizationName', 'targetOrganizationName',
+          'sourceFamilyId', 'familySnapshot', 'areaId',
+          'targetServiceId', 'serviceName', 'reason', 'status',
+          'createdBy', 'createdAt', 'updatedAt',
+          'sourceApprovedBy', 'sourceApprovedAt',
+          'targetReviewedBy', 'targetReviewedAt', 'rejectionReason',
+          'receivedFamilyId', 'startedAt', 'completedAt', 'completedBy',
+          'result', 'resultNote', 'sharingConfirmed', 'sharingConfirmedAt'
+        ])
+        && data.keys().hasOnly([
+          'number', 'sourceOrganizationId', 'targetOrganizationId',
+          'sourceOrganizationName', 'targetOrganizationName',
+          'sourceFamilyId', 'familySnapshot', 'areaId',
+          'targetServiceId', 'serviceName', 'reason', 'status',
+          'createdBy', 'createdAt', 'updatedAt',
+          'sourceApprovedBy', 'sourceApprovedAt',
+          'targetReviewedBy', 'targetReviewedAt', 'rejectionReason',
+          'receivedFamilyId', 'startedAt', 'completedAt', 'completedBy',
+          'result', 'resultNote', 'sharingConfirmed', 'sharingConfirmedAt'
+        ])
+        && data.number == referralId
+        && data.createdBy == request.auth.uid
+        && data.sourceOrganizationId is string
+        && data.sourceOrganizationId.size() > 0
+        && data.targetOrganizationId is string
+        && data.targetOrganizationId.size() > 0
+        && data.sourceFamilyId is string
+        && data.sourceFamilyId.size() > 0
+        && data.targetServiceId is string
+        && data.targetServiceId.size() > 0
+        && data.reason is string
+        && data.reason.size() > 0
+        && data.reason.size() <= 2000
+        && exists(familyPath(data.sourceOrganizationId, data.sourceFamilyId))
+        && exists(referralDirectoryPath(data.sourceOrganizationId))
+        && exists(referralDirectoryPath(data.targetOrganizationId))
+        && exists(servicePath(data.targetOrganizationId, data.targetServiceId))
+        && source.isActive == true
+        && target.isActive == true
+        && source.name is string
+        && source.name.size() > 0
+        && target.name is string
+        && target.name.size() > 0
+        && data.sourceOrganizationName == source.name
+        && data.targetOrganizationName == target.name
+        && targetService .isActive == true
+        && targetService .acceptsReferrals == true
+        && targetService .name is string
+        && targetService .name.size() > 0
+        && data.serviceName == targetService .name
+        && family.organizationId == data.sourceOrganizationId
+        && family.areaId is string
+        && family.areaId.size() > 0
+        && family.areaId == data.areaId
+        && family.headName is string
+        && family.headName.size() > 0
+        && family.membersCount is int
+        && family.membersCount > 0
+        && family.phoneNumber is string
+        && family.phoneNumber.size() > 0
+        && family.address is string
+        && family.address.size() > 0
+        && data.familySnapshot is map
+        && data.familySnapshot == {
+          'headName': family.headName,
+          'membersCount': family.membersCount,
+          'phoneNumber': family.phoneNumber,
+          'address': family.address
+        }
+        && (
+          isSupervisor(data.sourceOrganizationId)
+          || (
+            isFieldWorker(data.sourceOrganizationId)
+            && data.areaId == workerArea()
+          )
+        )
+        && (
+          (
+            isSupervisor(data.sourceOrganizationId)
+            && data.status == 'pending_target_approval'
+            && data.sourceApprovedBy == request.auth.uid
+            && data.sourceApprovedAt == request.time
+          )
+          || (
+            isFieldWorker(data.sourceOrganizationId)
+            && data.status == 'pending_source_approval'
+            && data.sourceApprovedBy == null
+            && data.sourceApprovedAt == null
+          )
+        )
+        && data.targetReviewedBy == null
+        && data.targetReviewedAt == null
+        && data.rejectionReason == null
+        && data.receivedFamilyId == null
+        && data.startedAt == null
+        && data.completedAt == null
+        && data.completedBy == null
+        && data.result == null
+        && data.resultNote == null
+        && data.sharingConfirmed == true
+        && data.sharingConfirmedAt == request.time
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && !exists(referralEventPath(referralId, 'created'))
+        && initialEvent.data.type == 'created'
+        && initialEvent.data.actorId == request.auth.uid
+        && initialEvent.data.createdAt == request.time;
+    }
+
+    // ==========================================
+    // 11. Referrals
+    // ==========================================
+
+    match /referrals/{referralId} {
+
+      allow get, list: if canReadReferral(resource.data);
+
+      // Direct creation is allowed only with the matching initial event.
+      // Other status changes remain backend-only until their rules are ready.
+      allow create: if validReferralCreation(referralId);
+      allow update, delete: if false;
+
+      match /events/{eventId} {
+
+        allow get, list: if isSignedIn()
+          && exists(referralPath(referralId))
+          && canReadReferral(
+            get(referralPath(referralId)).data
+          );
+
+        // This event must be written in the same atomic transaction
+        // as the initial referral document.
+        allow create: if isSignedIn()
+          && eventId == 'created'
+          && !exists(referralPath(referralId))
+          && existsAfter(referralPath(referralId))
+          && request.resource.data.keys().hasAll([
+            'type', 'actorId', 'createdAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'type', 'actorId', 'createdAt'
+          ])
+          && request.resource.data.type == 'created'
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && getAfter(referralPath(referralId)).data.createdBy == request.auth.uid;
+
+        allow update, delete: if false;
+      }
+    }
+
+    // ==========================================
+    // 12. Referral Directory
+    // ==========================================
+
+    match /referralDirectory/{orgId} {
+
+      allow get, list: if isAnyActiveMember()
+        && resource.data.isActive == true;
+
+      // Managed by trusted backend only.
+      allow create, update, delete: if false;
+    }
+
+    // ==========================================
+    // 13. Default Deny
+    // ==========================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

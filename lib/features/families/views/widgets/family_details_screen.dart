@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:sijil/core/theme/app_colors.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 
+import '../../../../core/widgets/app_button.dart';
 import '../../data/models/family_model.dart';
 
 class FamilyDetailsScreen extends StatefulWidget {
@@ -874,73 +875,8 @@ class _FamilyDetailsScreenState
     return Row(
       children: [
         Expanded(
-          flex: 2,
-          child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed:
-              _isSaving ? null : _saveChanges,
-
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(12),
-                ),
-              ),
-
-              child: _isSaving
-                  ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-                  : const Text(
-                'حفظ التعديلات',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        Expanded(
-          child: SizedBox(
-            height: 52,
-            child: OutlinedButton(
-              onPressed: _isSaving
-                  ? null
-                  : () => Navigator.of(context).pop(),
-
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                backgroundColor: AppColors.surface,
-
-                side: const BorderSide(
-                  color: AppColors.border,
-                ),
-
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(12),
-                ),
-              ),
-
-              child: const Text('إلغاء'),
-            ),
-          ),
-        ),
-      ],
-    );
+          child: AppButton(text: 'حفظ التعديلات', onPressed: _isSaving ? null : _saveChanges,)
+    ),]);
   }
 
   // ==========================================

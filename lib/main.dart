@@ -1,4 +1,6 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -19,6 +21,31 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+
+
+  const bool useFirebaseEmulators = bool.fromEnvironment(
+    'USE_FIREBASE_EMULATORS',
+    defaultValue: false,
+  );
+
+  if (useFirebaseEmulators) {
+    await FirebaseAuth.instance.useAuthEmulator(
+      '127.0.0.1',
+      9099,
+    );
+
+    FirebaseFirestore.instance.useFirestoreEmulator(
+      '127.0.0.1',
+      8080,
+    );
+
+    debugPrint('FIREBASE: Connected to local emulators');
+  }
+
+
+
+
 
   // Register controllers
   Get.put(EmployeeController(), permanent: true);

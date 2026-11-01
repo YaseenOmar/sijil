@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,11 +10,9 @@ import '../views/login_screen.dart';
 
 class UserSessionController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final SharedPreferencesAsync _prefs =
-  SharedPreferencesAsync();
+  final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
 
   // ========================================
   // Current User Data
@@ -50,18 +47,16 @@ class UserSessionController extends GetxController {
         return 'غير محدد';
     }
   }
+
   // ========================================
   // Session Settings
   // ========================================
 
-  static const Duration sessionTimeout =
-  Duration(days: 3);
+  static const Duration sessionTimeout = Duration(days: 3);
 
-  static const String _lastActivityKey =
-      'last_activity';
+  static const String _lastActivityKey = 'last_activity';
 
-  static const String _sessionUserKey =
-      'session_user';
+  static const String _sessionUserKey = 'session_user';
 
   Timer? _timer;
   DateTime? _lastActivity;
@@ -70,7 +65,6 @@ class UserSessionController extends GetxController {
   // ========================================
   // Load User, Organization and Area Data
   // ========================================
-
 
   Future<void> loadUserData() async {
     final user = _auth.currentUser;
@@ -83,17 +77,42 @@ class UserSessionController extends GetxController {
     isProfileLoading.value = true;
     isProfileLoaded.value = false;
 
+    String currentStep = 'initialization';
+    String currentPath = '';
+
     try {
       // ======================================
       // 1. Read User Profile
       // ======================================
 
+      currentStep = 'STEP 1 - User Profile';
+      currentPath = 'users/${user.uid}';
+
+      debugPrint('SESSION STEP 1: Reading user profile');
+      debugPrint('SESSION PATH: $currentPath');
+
+      debugPrint('SESSION: Checking Firebase Auth');
+
+      debugPrint('SESSION: Auth UID = ${_auth.currentUser?.uid}');
+
+
+      debugPrint('SESSION: Auth token refreshed');
+
+      debugPrint(
+        'SESSION: Firebase Project = '
+        '${_firestore.app.options.projectId}',
+      );
+
+      debugPrint('SESSION: Reading users/${user.uid}');
+
       final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
-          .get(
-        const GetOptions(source: Source.server),
-      );
+          .get(const GetOptions(source: Source.server));
+
+      debugPrint('SESSION: User read successful');
+
+      debugPrint('SESSION STEP 1: Success');
 
       if (!userDoc.exists) {
         throw Exception('ملف المستخدم غير موجود');
@@ -108,12 +127,15 @@ class UserSessionController extends GetxController {
       // 2. Validate User
       // ======================================
 
+      currentStep = 'STEP 2 - Validate User';
+
+      debugPrint('SESSION STEP 2: Validating user');
+
       if (data['status'] != 'active') {
         throw Exception('حساب المستخدم غير فعال');
       }
 
-      if (savedRole != 'supervisor' &&
-          savedRole != 'field_worker') {
+      if (savedRole != 'supervisor' && savedRole != 'field_worker') {
         throw Exception('دور المستخدم غير مسموح');
       }
 
@@ -121,27 +143,39 @@ class UserSessionController extends GetxController {
         throw Exception('المستخدم غير مرتبط بمؤسسة');
       }
 
+      debugPrint('SESSION STEP 2: Success');
+      debugPrint('SESSION ROLE: $savedRole');
+
       // ======================================
       // 3. Load Organization Name
       // ======================================
 
+      currentStep = 'STEP 3 - Organization';
+      currentPath = 'organizations/$orgId';
+
+      debugPrint('SESSION STEP 3: Reading organization');
+      debugPrint('SESSION PATH: $currentPath');
+
       final orgDoc = await _firestore
           .collection('organizations')
           .doc(orgId)
-          .get(
-        const GetOptions(source: Source.server),
-      );
+          .get(const GetOptions(source: Source.server));
+
+      debugPrint('SESSION STEP 3: Success');
 
       if (!orgDoc.exists) {
         throw Exception('مستند المؤسسة غير موجود');
       }
 
-      final orgName =
-          orgDoc.data()?['name'] as String? ?? '';
+      final orgName = orgDoc.data()?['name'] as String? ?? '';
 
       // ======================================
       // 4. Resolve Assigned Area
       // ======================================
+
+      currentStep = 'STEP 4 - Resolve Area';
+
+      debugPrint('SESSION STEP 4: Resolving assigned area');
 
       // Employee data is stored in users/{uid}
       // after invitation acceptance.
@@ -157,66 +191,72 @@ class UserSessionController extends GetxController {
       final savedAreaId = data['areaId'];
 
       if (savedRole == 'field_worker') {
-        if (savedAreaId is! String ||
-            savedAreaId.trim().isEmpty) {
-          throw Exception(
-            'منطقة عمل الموظف غير محددة',
-          );
+        if (savedAreaId is! String || savedAreaId.trim().isEmpty) {
+          throw Exception('منطقة عمل الموظف غير محددة');
         }
 
         resolvedAreaId = savedAreaId.trim();
       } else {
         // Supervisor may not have a specific area.
-        resolvedAreaId = savedAreaId is String
-            ? savedAreaId.trim()
-            : '';
+        resolvedAreaId = savedAreaId is String ? savedAreaId.trim() : '';
       }
+
+      debugPrint('SESSION STEP 4: Success');
 
       // ======================================
       // 5. Load Area Name
       // ======================================
 
       if (resolvedAreaId.isNotEmpty) {
+        currentStep = 'STEP 5 - Area';
+        currentPath = 'organizations/$orgId/areas/$resolvedAreaId';
+
+        debugPrint('SESSION STEP 5: Reading area');
+        debugPrint('SESSION PATH: $currentPath');
+
         final areaDoc = await _firestore
             .collection('organizations')
             .doc(orgId)
             .collection('areas')
             .doc(resolvedAreaId)
-            .get(
-          const GetOptions(source: Source.server),
-        );
+            .get(const GetOptions(source: Source.server));
+
+        debugPrint('SESSION STEP 5: Success');
 
         if (!areaDoc.exists) {
           throw Exception('مستند المنطقة غير موجود');
         }
 
-        resolvedAreaName =
-            areaDoc.data()?['name'] as String? ?? '';
+        resolvedAreaName = areaDoc.data()?['name'] as String? ?? '';
+      } else {
+        debugPrint('SESSION STEP 5: Skipped - No assigned area');
       }
 
       // ======================================
       // 6. Verify Current User
       // ======================================
 
+      currentStep = 'STEP 6 - Verify Current User';
+
+      debugPrint('SESSION STEP 6: Verifying current user');
+
       if (_auth.currentUser?.uid != user.uid) {
-        throw Exception(
-          'تغير المستخدم أثناء تحميل البيانات',
-        );
+        throw Exception('تغير المستخدم أثناء تحميل البيانات');
       }
+
+      debugPrint('SESSION STEP 6: Success');
 
       // ======================================
       // 7. Save Data in GetX
       // ======================================
 
+      currentStep = 'STEP 7 - Save Session';
+
       uid.value = user.uid;
 
-      fullName.value =
-          data['fullName'] as String? ?? '';
+      fullName.value = data['fullName'] as String? ?? '';
 
-      email.value =
-          data['email'] as String? ??
-              user.email ??
-              '';
+      email.value = data['email'] as String? ?? user.email ?? '';
 
       role.value = savedRole as String;
 
@@ -230,11 +270,23 @@ class UserSessionController extends GetxController {
 
       isProfileLoaded.value = true;
 
-      debugPrint(
-        'SESSION: User profile loaded successfully',
-      );
+      debugPrint('SESSION STEP 7: Success');
+      debugPrint('SESSION: User profile loaded successfully');
     } catch (e, stackTrace) {
-      debugPrint('SESSION: loadUserData failed: $e');
+      debugPrint('====================================');
+      debugPrint('SESSION: loadUserData FAILED');
+      debugPrint('FAILED STEP: $currentStep');
+      debugPrint('FAILED PATH: $currentPath');
+      debugPrint('ERROR: $e');
+
+      if (e is FirebaseException) {
+        debugPrint('FIREBASE PLUGIN: ${e.plugin}');
+        debugPrint('FIREBASE CODE: ${e.code}');
+        debugPrint('FIREBASE MESSAGE: ${e.message}');
+      }
+
+      debugPrint('====================================');
+
       debugPrintStack(stackTrace: stackTrace);
 
       clearUserData();
@@ -244,13 +296,13 @@ class UserSessionController extends GetxController {
     }
   }
 
-
   // ========================================
   // Start Session After Login
   // ========================================
 
   // Keep the parameter for compatibility
   // with the existing LoginController.
+
   Future<void> startSession(String userRole) async {
     final user = _auth.currentUser;
 
@@ -258,12 +310,32 @@ class UserSessionController extends GetxController {
       throw Exception('يجب تسجيل الدخول أولاً');
     }
 
-    // Always load the actual role from Firestore.
+    final expectedUid = user.uid;
+
+    debugPrint(
+      'SESSION START: Starting for UID $expectedUid',
+    );
+
+    // Load the actual role and organization
+    // from Firestore, not from userRole.
     await loadUserData();
 
-    if (_auth.currentUser?.uid != user.uid) {
-      throw Exception(
-        'تغير المستخدم أثناء تسجيل الدخول',
+    final currentUid = _auth.currentUser?.uid;
+
+    if (currentUid != expectedUid) {
+      debugPrint(
+        'SESSION START: Auth user changed. '
+            'Expected=$expectedUid, Current=$currentUid',
+      );
+
+      throw StateError(
+        'تغير المستخدم أثناء بدء الجلسة',
+      );
+    }
+
+    if (!isProfileLoaded.value) {
+      throw StateError(
+        'تعذر تحميل بيانات المستخدم',
       );
     }
 
@@ -271,7 +343,7 @@ class UserSessionController extends GetxController {
 
     await _prefs.setString(
       _sessionUserKey,
-      user.uid,
+      expectedUid,
     );
 
     await _prefs.setInt(
@@ -280,7 +352,12 @@ class UserSessionController extends GetxController {
     );
 
     _startTimer();
+
+    debugPrint(
+      'SESSION START: Session created successfully',
+    );
   }
+
 
   // ========================================
   // Restore Session
@@ -295,22 +372,16 @@ class UserSessionController extends GetxController {
     }
 
     try {
-      final savedUid =
-      await _prefs.getString(_sessionUserKey);
+      final savedUid = await _prefs.getString(_sessionUserKey);
 
-      final savedTime =
-      await _prefs.getInt(_lastActivityKey);
+      final savedTime = await _prefs.getInt(_lastActivityKey);
 
-      if (savedUid != user.uid ||
-          savedTime == null) {
+      if (savedUid != user.uid || savedTime == null) {
         await logout(navigate: false);
         return false;
       }
 
-      _lastActivity =
-          DateTime.fromMillisecondsSinceEpoch(
-            savedTime,
-          );
+      _lastActivity = DateTime.fromMillisecondsSinceEpoch(savedTime);
 
       if (_hasExpired()) {
         await logout(navigate: false);
@@ -340,14 +411,11 @@ class UserSessionController extends GetxController {
   bool _hasExpired() {
     if (_lastActivity == null) return true;
 
-    return DateTime.now()
-        .difference(_lastActivity!) >=
-        sessionTimeout;
+    return DateTime.now().difference(_lastActivity!) >= sessionTimeout;
   }
 
   Future<void> checkSession() async {
-    if (_auth.currentUser == null ||
-        _isSigningOut) {
+    if (_auth.currentUser == null || _isSigningOut) {
       return;
     }
 
@@ -361,9 +429,7 @@ class UserSessionController extends GetxController {
   // ========================================
 
   Future<void> recordActivity() async {
-    if (_auth.currentUser == null ||
-        role.value.isEmpty ||
-        _isSigningOut) {
+    if (_auth.currentUser == null || role.value.isEmpty || _isSigningOut) {
       return;
     }
 
@@ -376,17 +442,13 @@ class UserSessionController extends GetxController {
 
     // Reduce frequent local writes.
     if (_lastActivity != null &&
-        now.difference(_lastActivity!) <
-            const Duration(minutes: 1)) {
+        now.difference(_lastActivity!) < const Duration(minutes: 1)) {
       return;
     }
 
     _lastActivity = now;
 
-    await _prefs.setInt(
-      _lastActivityKey,
-      now.millisecondsSinceEpoch,
-    );
+    await _prefs.setInt(_lastActivityKey, now.millisecondsSinceEpoch);
   }
 
   // ========================================
@@ -396,19 +458,20 @@ class UserSessionController extends GetxController {
   void _startTimer() {
     _timer?.cancel();
 
-    _timer = Timer.periodic(
-      const Duration(minutes: 1),
-          (_) => checkSession(),
-    );
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => checkSession());
   }
 
   // ========================================
   // Logout
   // ========================================
 
-  Future<void> logout({
-    bool navigate = true,
-  }) async {
+  Future<void> logout({bool navigate = true}) async {
+    debugPrint(
+      'SESSION LOGOUT CALLED: ${DateTime.now()}',
+    );
+    debugPrintStack(
+      label: 'SESSION LOGOUT STACK TRACE',
+    );
     if (_isSigningOut) return;
 
     _isSigningOut = true;
