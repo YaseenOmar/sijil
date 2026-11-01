@@ -65,6 +65,16 @@ class FamilyCreationController extends GetxController {
   // The displayed name is loaded from Firestore.
   final areaNameController = TextEditingController();
 
+  final userRole = ''.obs;
+
+  final availableAreas = <Map<String, String>>[].obs;
+
+  final selectedAreaId = RxnString();
+
+  final isLoadingAreas = false.obs;
+
+  final areaError = RxnString();
+
   final addressController = TextEditingController();
 
   final housingStatus = RxnString();
@@ -122,6 +132,9 @@ class FamilyCreationController extends GetxController {
 
   Future<void> _loadAssignedArea() async {
     try {
+      isLoadingAreas.value = true;
+      areaError.value = null;
+
       final currentUser = _auth.currentUser;
 
       if (currentUser == null) {
@@ -130,13 +143,10 @@ class FamilyCreationController extends GetxController {
         );
       }
 
-      // Read active user's data.
       final userDoc = await _firestore
           .collection('users')
           .doc(currentUser.uid)
-          .get(
-        const GetOptions(source: Source.server),
-      );
+          .get(const GetOptions(source: Source.server));
 
       if (!userDoc.exists) {
         throw const FamilyCreationException(
@@ -152,115 +162,97 @@ class FamilyCreationController extends GetxController {
         );
       }
 
-      final role = userData['role'];
+      final role = userData['role'] as String?;
+      final orgId = userData['organizationId'] as String?;
 
-      // Supervisor can select an area as before.
-      if (role != 'field_worker') {
-        return;
-      }
-
-      // Read organization and assigned area
-      // directly from users/{uid}.
-      final orgId = userData['organizationId'];
-
-      final assignedArea = userData['areaId'];
-
-      if (orgId is! String ||
-          orgId.trim().isEmpty) {
+      if (!['supervisor', 'field_worker'].contains(role) ||
+          orgId == null ||
+          orgId.isEmpty) {
         throw const FamilyCreationException(
-          'مؤسسة الموظف غير محددة',
+          'بيانات صلاحيات المستخدم غير مكتملة',
         );
       }
 
-      if (assignedArea is! String ||
-          assignedArea.trim().isEmpty) {
-        throw const FamilyCreationException(
-          'منطقة الموظف غير محددة',
+      userRole.value = role!;
+
+      if (role == 'supervisor') {
+        areaId = '';
+        selectedAreaId.value = null;
+        areaNameController.clear();
+        availableAreas.clear();
+
+        final snapshot = await _firestore
+            .collection('organizations')
+            .doc(orgId)
+            .collection('areas')
+            .get(const GetOptions(source: Source.server));
+
+        if (isClosed ||
+            _auth.currentUser?.uid != currentUser.uid) {
+          return;
+        }
+
+        final areas = snapshot.docs
+            .where((doc) =>
+        doc.data()['name'] is String &&
+            (doc.data()['name'] as String).trim().isNotEmpty)
+            .map((doc) => <String, String>{
+          'id': doc.id,
+          'name': (doc.data()['name'] as String).trim(),
+        })
+            .toList();
+
+        areas.sort(
+              (a, b) => a['name']!.compareTo(b['name']!),
         );
+
+        availableAreas.assignAll(areas);
+
+        if (areas.isEmpty) {
+          areaError.value = 'لا توجد مناطق مسجلة في المؤسسة';
+        }
+      } else {
+        final assignedArea = userData['areaId'] as String?;
+
+        if (assignedArea == null || assignedArea.isEmpty) {
+          throw const FamilyCreationException(
+            'منطقة الموظف غير محددة',
+          );
+        }
+
+        final areaDoc = await _firestore
+            .collection('organizations')
+            .doc(orgId)
+            .collection('areas')
+            .doc(assignedArea)
+            .get(const GetOptions(source: Source.server));
+
+        if (!areaDoc.exists) {
+          throw const FamilyCreationException(
+            'منطقة الموظف غير موجودة',
+          );
+        }
+
+        if (isClosed ||
+            _auth.currentUser?.uid != currentUser.uid) {
+          return;
+        }
+
+        areaId = assignedArea;
+        selectedAreaId.value = assignedArea;
+        areaNameController.text =
+            areaDoc.data()?['name'] as String? ?? '';
       }
-
-      final cleanOrgId = orgId.trim();
-
-      final cleanAreaId = assignedArea.trim();
-
-      // ======================================
-      // Read Area Name from Firestore
-      // ======================================
-
-      final areaDoc = await _firestore
-          .collection('organizations')
-          .doc(cleanOrgId)
-          .collection('areas')
-          .doc(cleanAreaId)
-          .get(
-        const GetOptions(source: Source.server),
-      );
-
-      if (!areaDoc.exists) {
-        throw const FamilyCreationException(
-          'المنطقة المرتبطة بالموظف غير موجودة',
-        );
-      }
-
-      final areaData = areaDoc.data()!;
-
-      final areaName = areaData['name'];
-
-      if (areaName is! String ||
-          areaName.trim().isEmpty) {
-        throw const FamilyCreationException(
-          'اسم المنطقة غير متوفر في قاعدة البيانات',
-        );
-      }
-
-      // Prevent updating a disposed controller
-      // or using another user's data.
-      if (isClosed ||
-          _auth.currentUser?.uid != currentUser.uid) {
-        return;
-      }
-
-      // Save ID for Firestore operations.
-      areaId = cleanAreaId;
-
-      // Display the readable area name.
-      areaNameController.text = areaName.trim();
-
-      debugPrint(
-        'FAMILY CREATION: Area ID = $areaId',
-      );
-
-      debugPrint(
-        'FAMILY CREATION: Area Name = ${areaNameController.text}',
-      );
-    } on FirebaseException catch (e) {
-      debugPrint(
-        'FAMILY CREATION AREA ERROR: ${e.code} - ${e.message}',
-      );
-
-      if (isClosed) return;
-
-      Get.snackbar(
-        'تعذر تحميل المنطقة',
-        e.code == 'permission-denied'
-            ? 'ليس لديك صلاحية لقراءة بيانات المنطقة'
-            : 'تعذر تحميل المنطقة. تحقق من الاتصال وأعد المحاولة.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
     } catch (e) {
-      debugPrint(
-        'FAMILY CREATION AREA ERROR: $e',
-      );
-
       if (isClosed) return;
 
-      Get.snackbar(
-        'تعذر تحميل المنطقة',
-        e is FamilyCreationException
-            ? e.message
-            : 'تعذر تحديد منطقة الموظف',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      areaError.value = e is FamilyCreationException
+          ? e.message
+          : 'تعذر تحميل المناطق: $e';
+    } finally {
+      if (!isClosed) {
+        isLoadingAreas.value = false;
+      }
     }
   }
 
@@ -478,6 +470,17 @@ class FamilyCreationController extends GetxController {
             ?.validate() ??
             false;
 
+    if (isLoadingAreas.value) {
+      Get.snackbar('تنبيه', 'يرجى انتظار تحميل المناطق');
+      return;
+    }
+
+    if (areaId.trim().isEmpty ||
+        selectedAreaId.value == null) {
+      areaError.value = 'يرجى تحديد منطقة الأسرة';
+      return;
+    }
+
     housingError.value =
     housingStatus.value == null
         ? 'يرجى اختيار حالة السكن'
@@ -491,6 +494,21 @@ class FamilyCreationController extends GetxController {
     if (!isFormValid ||
         housingError.value != null ||
         needsError.value != null) {
+      return;
+    }
+
+    if (isLoadingAreas.value) {
+      Get.snackbar('تنبيه', 'يرجى انتظار تحميل المنطقة');
+      return;
+    }
+
+    if (areaId.trim().isEmpty) {
+      Get.snackbar(
+        'تنبيه',
+        userRole.value == 'supervisor'
+            ? 'يرجى اختيار منطقة الأسرة'
+            : 'لم يتم تحديد منطقة الموظف',
+      );
       return;
     }
 
@@ -627,6 +645,15 @@ class FamilyCreationController extends GetxController {
       throw const FamilyCreationException(
         'لم يتم تحديد المؤسسة',
       );
+    }
+
+    if (role == 'supervisor') {
+      if (areaId.isEmpty ||
+          !availableAreas.any((area) => area['id'] == areaId)) {
+        throw const FamilyCreationException(
+          'يرجى اختيار منطقة صحيحة من مناطق المؤسسة',
+        );
+      }
     }
 
     String selectedAreaId = areaId;
@@ -829,5 +856,16 @@ class FamilyCreationController extends GetxController {
     addressController.dispose();
 
     super.onClose();
+  }
+  void selectArea(String? value) {
+    selectedAreaId.value = value;
+    areaId = value ?? '';
+    areaError.value = null;
+
+    final selected = availableAreas.firstWhereOrNull(
+          (area) => area['id'] == value,
+    );
+
+    areaNameController.text = selected?['name'] ?? '';
   }
 }

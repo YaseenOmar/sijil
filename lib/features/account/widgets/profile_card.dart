@@ -23,7 +23,7 @@ class ProfileCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.successBackground,
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -57,13 +57,7 @@ class ProfileCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Email
-          Text(
-            email,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.primary,
-            ),
-          ),
+          infoItem('البريد الالكتروني', email),
         ],
       ),
     );

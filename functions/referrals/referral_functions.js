@@ -1,4 +1,3 @@
-
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
@@ -309,6 +308,8 @@ exports.createReferral = onCall(async (request) => {
 
       receivedFamilyId: null,
 
+      assignedTo: null,
+      assignedAt: null,
       startedAt: null,
       completedAt: null,
       completedBy: null,
@@ -587,12 +588,10 @@ exports.rejectIncomingReferral = onCall(async (request) => {
  * 6. Start referral service
  *
  * accepted -> in_progress
- * Only the receiving organization's supervisor.
+ * Employee claims accepted service atomically (legacy supervisor calls still supported).
  */
 exports.startReferralService = onCall(async (request) => {
   const user = await getCurrentUser(request);
-  requireSupervisor(user);
-
   const referralId = getReferralId(request.data);
   const referralRef = db.collection("referrals").doc(referralId);
 
@@ -642,6 +641,8 @@ exports.startReferralService = onCall(async (request) => {
 
     tx.update(referralRef, {
       status: STATUS.IN_PROGRESS,
+      assignedTo: user.uid,
+      assignedAt: FieldValue.serverTimestamp(),
       startedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -665,8 +666,6 @@ exports.startReferralService = onCall(async (request) => {
  */
 exports.completeReferralService = onCall(async (request) => {
   const user = await getCurrentUser(request);
-  requireSupervisor(user);
-
   const referralId = getReferralId(request.data);
 
   const result = requiredString(
@@ -720,6 +719,13 @@ exports.completeReferralService = onCall(async (request) => {
     }
 
     assertStatus(referral, STATUS.IN_PROGRESS);
+
+    // Only the employee who claimed the service can complete it.
+    // Legacy supervisor-started records without assignedTo remain finishable by supervisor.
+    if (referral.assignedTo !== user.uid &&
+        !(user.role === "supervisor" && !referral.assignedTo)) {
+      throw new HttpsError("permission-denied", "الخدمة مسندة لموظف آخر");
+    }
 
     if (!referral.startedAt || !referral.receivedFamilyId) {
       throw new HttpsError(

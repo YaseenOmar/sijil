@@ -84,71 +84,72 @@ class AccountSettingsScreen extends StatelessWidget {
 
                 const SizedBox(height: 28),
 
-                //المزامنة والعرض
-                sectionTitle('المزامنة والعرض'),
-
-                const SizedBox(height: 16),
-
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: Border.all(
-                      color: AppColors.border,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-
-                      // Automatic Sync
-                      Obx(() => AppOptionTile(
-                        title: 'المزامنة التلقائية',
-                        selected: controller.autoSync.value,
-                        onTap: controller.toggleAutoSync,
-                      )),
-
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'تبدأ عند عودة الاتصال، مع الاحتفاظ بحالة كل عملية ومرفق.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.7,
-                        ),
-                      ),
-
-                      const Divider(
-                        height: 30,
-                        color: AppColors.border,
-                      ),
-
-                      // Larger Text
-                      Obx(() => AppOptionTile(
-                        title: 'نص أكبر',
-                        selected: controller.largeText.value,
-                        onTap: controller.toggleLargeText,
-                      )),
-
-                      const SizedBox(height: 12),
-
-                      const Text(
-                        'تتبع الواجهة حجم خط الجهاز. يوسّع هذا الخيار النصوص دون إخفاء المحتوى.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.7,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 28),
+                // //المزامنة والعرض
+                // sectionTitle('المزامنة والعرض'),
+                //
+                // const SizedBox(height: 16),
+                //
+                // Container(
+                //   padding: const EdgeInsets.all(15),
+                //   decoration: BoxDecoration(
+                //     color: AppColors.surface,
+                //     border: Border.all(
+                //       color: AppColors.border,
+                //     ),
+                //     borderRadius: BorderRadius.circular(16),
+                //   ),
+                //   child: Column(
+                //     crossAxisAlignment: CrossAxisAlignment.stretch,
+                //     children: [
+                //
+                //       // Automatic Sync
+                //       Obx(() => AppOptionTile(
+                //         title: 'المزامنة التلقائية',
+                //         selected: controller.autoSync.value,
+                //         onTap: controller.toggleAutoSync,
+                //       )),
+                //
+                //       const SizedBox(height: 12),
+                //
+                //       const Text(
+                //         'تبدأ عند عودة الاتصال، مع الاحتفاظ بحالة كل عملية ومرفق.',
+                //         style: TextStyle(
+                //           fontSize: 13,
+                //           color: AppColors.textSecondary,
+                //           height: 1.7,
+                //         ),
+                //       ),
+                //
+                //       const Divider(
+                //         height: 30,
+                //         color: AppColors.border,
+                //       ),
+                //
+                //       // Larger Text
+                //       Obx(() => AppOptionTile(
+                //         title: 'نص أكبر',
+                //         selected: controller.largeText.value,
+                //         onTap: controller.toggleLargeText,
+                //       )),
+                //
+                //       const SizedBox(height: 12),
+                //
+                //       const Text(
+                //         'تتبع الواجهة حجم خط الجهاز. يوسّع هذا الخيار النصوص دون إخفاء المحتوى.',
+                //         style: TextStyle(
+                //           fontSize: 13,
+                //           color: AppColors.textSecondary,
+                //           height: 1.7,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
+                //
+                // const SizedBox(height: 28),
 
                 //الخصوصية والاذونات
+
                 sectionTitle('الخصوصية والأذونات'),
 
                 const SizedBox(height: 16),

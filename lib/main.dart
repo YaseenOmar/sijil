@@ -22,31 +22,6 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-
-
-  const bool useFirebaseEmulators = bool.fromEnvironment(
-    'USE_FIREBASE_EMULATORS',
-    defaultValue: false,
-  );
-
-  if (useFirebaseEmulators) {
-    await FirebaseAuth.instance.useAuthEmulator(
-      '127.0.0.1',
-      9099,
-    );
-
-    FirebaseFirestore.instance.useFirestoreEmulator(
-      '127.0.0.1',
-      8080,
-    );
-
-    debugPrint('FIREBASE: Connected to local emulators');
-  }
-
-
-
-
-
   // Register controllers
   Get.put(EmployeeController(), permanent: true);
   Get.put(UserSessionController(), permanent: true);

@@ -432,10 +432,14 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
           AppButton(
             text: 'إضافة أسرة',
             icon: Icons.add,
-            onPressed: () {
-              Get.to(
+            onPressed: () async {
+              await Get.to(
                     () => FamilyBasicInfoScreen(),
               );
+
+              if (!mounted || controller.isClosed) return;
+
+              await controller.fetchFamilies();
             },
           ),
           const SizedBox(height: 12),

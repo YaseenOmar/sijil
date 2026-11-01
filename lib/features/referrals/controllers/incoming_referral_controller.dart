@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -13,7 +14,9 @@ import '../utils/referral_validators.dart';
 class IncomingReferralController extends GetxController {
   final ReferralModel initialReferral;
 
-  IncomingReferralController(this.initialReferral);
+  final bool isSupervisor;
+
+  IncomingReferralController(this.initialReferral, {this.isSupervisor = true});
 
   final ReferralRepository _repository = ReferralRepository();
   final ReferralService _service = ReferralService();
@@ -40,19 +43,21 @@ class IncomingReferralController extends GetxController {
   ReferralModel? get referral => currentReferral.value;
 
   bool get isWaitingDecision =>
-      referral?.status == ReferralStatus.pendingTargetApproval;
+      isSupervisor && referral?.status == ReferralStatus.pendingTargetApproval;
 
   bool get canStartService =>
-      referral?.status == ReferralStatus.accepted;
+      !isSupervisor && referral?.status == ReferralStatus.accepted;
 
   bool get canCompleteService =>
-      referral?.status == ReferralStatus.inProgress;
+      !isSupervisor &&
+      referral?.status == ReferralStatus.inProgress &&
+      referral?.assignedTo == FirebaseAuth.instance.currentUser?.uid;
 
   bool get isCompleted =>
       referral?.status == ReferralStatus.completed;
 
   bool get canReject =>
-      isWaitingDecision &&
+      isSupervisor && isWaitingDecision &&
           ReferralValidators.rejectReason(rejectReason.value) == null;
 
   String? get rejectError => isReasonTouched.value

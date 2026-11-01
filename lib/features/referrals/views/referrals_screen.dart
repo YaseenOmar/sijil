@@ -46,8 +46,7 @@ class ReferralsScreen extends StatelessWidget {
                 () => ReferralTabs(
               labels: [
                 'الصادرة ${toArabicDigits(controller.outgoing.length)}',
-                if (controller.isSupervisor)
-                  'الواردة · للمشرف',
+                controller.isSupervisor ? 'الواردة · للمشرف' : 'الواردة · المقبولة',
               ],
               selectedIndex: controller.tabIndex.value,
               onChanged: controller.selectTab,
@@ -66,7 +65,7 @@ class ReferralsScreen extends StatelessWidget {
   List<Widget> _outgoingChildren() {
     return [
       const Text(
-        'تعرض لك الإحالات التي أنشأتها في منطقتك. يستقبل المشرف الإحالات الواردة للجهة.',
+        'تابع الإحالات الصادرة وحالتها، وانتقل إلى الواردة لمتابعة الخدمات المقبولة.',
         style: TextStyle(
           fontSize: 14,
           height: 1.5,
@@ -152,7 +151,9 @@ class ReferralsScreen extends StatelessWidget {
 
       // Status filter (single select)
       Obx(
-        () => ReferralStatusFilter(
+        () => controller.isFieldWorker
+            ? const SizedBox.shrink()
+            : ReferralStatusFilter(
           options: ReferralOptions.incomingFilters,
           selected: controller.selectedIncomingFilter.value,
           onSelected: controller.selectIncomingFilter,

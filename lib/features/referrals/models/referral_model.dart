@@ -72,8 +72,6 @@ class ReferralModel {
   // Identity
   final String id;
   final String number;
-  final String? assignedTo;
-  final DateTime? assignedAt;
 
   // Organizations
   final String sourceOrganizationId;
@@ -119,6 +117,8 @@ class ReferralModel {
   final DateTime? startedAt;
   final DateTime? completedAt;
   final String? completedBy;
+  final String? assignedTo;
+  final DateTime? assignedAt;
   final String? result;
   final String? resultNote;
 
@@ -158,6 +158,8 @@ class ReferralModel {
     this.startedAt,
     this.completedAt,
     this.completedBy,
+    this.assignedTo,
+    this.assignedAt,
     this.result,
     this.resultNote,
     required this.sharingConfirmed,
@@ -241,6 +243,8 @@ class ReferralModel {
     DateTime? startedAt,
     DateTime? completedAt,
     String? completedBy,
+    String? assignedTo,
+    DateTime? assignedAt,
     String? result,
     String? resultNote,
     DateTime? updatedAt,
@@ -280,6 +284,8 @@ class ReferralModel {
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       completedBy: completedBy ?? this.completedBy,
+      assignedTo: assignedTo ?? this.assignedTo,
+      assignedAt: assignedAt ?? this.assignedAt,
       result: result ?? this.result,
       resultNote: resultNote ?? this.resultNote,
       sharingConfirmed: sharingConfirmed,

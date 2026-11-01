@@ -19,7 +19,7 @@ class FamilyHousingNeedsScreen extends StatelessWidget {
   FamilyHousingNeedsScreen({super.key});
 
   final FamilyCreationController controller =
-      Get.find<FamilyCreationController>();
+  Get.find<FamilyCreationController>();
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +40,47 @@ class FamilyHousingNeedsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Area is assigned to the employee, so it is read only
-              AppTextField(
-                label: 'المنطقة المكلف بها',
-                controller: controller.areaNameController,
-                readOnly: true,
-              ),
+              Obx(() {
+                if (controller.isLoadingAreas.value) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                if (controller.userRole.value == 'supervisor') {
+                  return DropdownButtonFormField<String>(
+                    value: controller.selectedAreaId.value,
+                    decoration: InputDecoration(
+                      labelText: 'منطقة الأسرة *',
+                      hintText: 'اختر المنطقة المناسبة',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    isExpanded: true,
+                    items: controller.availableAreas.map((area) {
+                      return DropdownMenuItem<String>(
+                        value: area['id'],
+                        child: Text(area['name']!),
+                      );
+                    }).toList(),
+                    onChanged: controller.selectArea,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'يرجى اختيار منطقة الأسرة';
+                      }
+                      return null;
+                    },
+                  );
+                }
+
+                // Field worker: visible but not editable.
+                return AppTextField(
+                  label: 'المنطقة المكلف بها',
+                  controller: controller.areaNameController,
+                  readOnly: true,
+                );
+              }),
 
               const SizedBox(height: 16),
 
@@ -65,51 +101,54 @@ class FamilyHousingNeedsScreen extends StatelessWidget {
 
         // Housing status (single select)
         Obx(
-          () => FormFieldGroup(
-            label: 'حالة السكن',
-            isRequired: true,
-            errorText: controller.housingError.value,
-            child: OptionChipWrap(
-              options: FamilyOptions.housingStatuses,
-              selected: [
-                if (controller.housingStatus.value != null)
-                  controller.housingStatus.value!,
-              ],
-              onTap: controller.selectHousingStatus,
-            ),
-          ),
+              () =>
+              FormFieldGroup(
+                label: 'حالة السكن',
+                isRequired: true,
+                errorText: controller.housingError.value,
+                child: OptionChipWrap(
+                  options: FamilyOptions.housingStatuses,
+                  selected: [
+                    if (controller.housingStatus.value != null)
+                      controller.housingStatus.value!,
+                  ],
+                  onTap: controller.selectHousingStatus,
+                ),
+              ),
         ),
 
         const SizedBox(height: 24),
 
         // Needs (multi select)
         Obx(
-          () => FormFieldGroup(
-            label: 'الاحتياجات',
-            isRequired: true,
-            helperText: 'يمكن اختيار أكثر من احتياج',
-            errorText: controller.needsError.value,
-            child: OptionChipWrap(
-              options: FamilyOptions.needs,
-              selected: controller.selectedNeeds.toList(),
-              onTap: controller.toggleNeed,
-            ),
-          ),
+              () =>
+              FormFieldGroup(
+                label: 'الاحتياجات',
+                isRequired: true,
+                helperText: 'يمكن اختيار أكثر من احتياج',
+                errorText: controller.needsError.value,
+                child: OptionChipWrap(
+                  options: FamilyOptions.needs,
+                  selected: controller.selectedNeeds.toList(),
+                  onTap: controller.toggleNeed,
+                ),
+              ),
         ),
 
         const SizedBox(height: 24),
 
         // Optional ID card image
         Obx(
-          () => FormFieldGroup(
-            label: 'صورة بطاقة الهوية - اختياري',
-            child: IdCardImageField(
-              imagePath: controller.idCardImagePath.value,
-              sizeKb: controller.idCardImageSizeKb.value,
-              onPick: _showImageSourceSheet,
-              onRemove: controller.removeIdCardImage,
-            ),
-          ),
+              () =>
+              FormFieldGroup(
+                label: 'صورة بطاقة الهوية - اختياري',
+                child: IdCardImageField(
+                  imagePath: controller.idCardImagePath.value,
+                  sizeKb: controller.idCardImageSizeKb.value,
+                  onPick: _showImageSourceSheet,
+                  onRemove: controller.removeIdCardImage,
+                ),
+              ),
         ),
 
         const SizedBox(height: 16),

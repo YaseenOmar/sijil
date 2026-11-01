@@ -1068,7 +1068,16 @@ match /assistanceAssignments/{assignmentId} {
         allow get, list: if isActiveMember(orgId)
           && isSupervisor(orgId);
 
-        allow create, update, delete: if false;
+        allow create: if isSupervisor(orgId)
+          && receivedFamilyId == request.resource.data.firstReferralId
+          && request.resource.data.targetOrganizationId == orgId
+          && request.resource.data.receivedAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && existsAfter(referralPath(receivedFamilyId))
+          && getAfter(referralPath(receivedFamilyId)).data.status == 'accepted'
+          && getAfter(referralPath(receivedFamilyId)).data.targetOrganizationId == orgId
+          && getAfter(referralPath(receivedFamilyId)).data.receivedFamilyId == receivedFamilyId;
+        allow update, delete: if false;
       }
     }
 
@@ -1133,26 +1142,19 @@ match /assistanceAssignments/{assignmentId} {
 
     function canReadOutgoingReferral(data) {
       return isActiveMember(data.sourceOrganizationId)
-        && (
-          isSupervisor(data.sourceOrganizationId)
-          || (
-            isFieldWorker(data.sourceOrganizationId)
-            && data.areaId ==
-              workerArea()
-          )
-        );
+        && (isSupervisor(data.sourceOrganizationId)
+          || (isFieldWorker(data.sourceOrganizationId)
+              && data.createdBy == request.auth.uid
+              && data.areaId == workerArea()));
     }
 
     function canReadIncomingReferral(data) {
       return isActiveMember(data.targetOrganizationId)
-        && isSupervisor(data.targetOrganizationId)
-        && data.status in [
-          'pending_target_approval',
-          'rejected_by_target',
-          'accepted',
-          'in_progress',
-          'completed'
-        ];
+        && (isSupervisor(data.targetOrganizationId)
+          && data.status in ['pending_target_approval', 'rejected_by_target',
+              'accepted', 'in_progress', 'completed']
+          || isFieldWorker(data.targetOrganizationId)
+          && data.status in ['accepted', 'in_progress', 'completed']);
     }
 
     function canReadReferral(data) {
@@ -1286,6 +1288,67 @@ match /assistanceAssignments/{assignmentId} {
         && initialEvent.data.createdAt == request.time;
     }
 
+    // Temporary Spark presentation workflow. No Cloud Functions required.
+    function validReferralStatusUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      let sourceSupervisor = isSupervisor(before.sourceOrganizationId);
+      let targetSupervisor = isSupervisor(before.targetOrganizationId);
+      let targetWorker = isFieldWorker(before.targetOrganizationId);
+      return after.sourceOrganizationId == before.sourceOrganizationId
+        && after.targetOrganizationId == before.targetOrganizationId
+        && after.sourceFamilyId == before.sourceFamilyId
+        && after.createdBy == before.createdBy
+        && after.updatedAt == request.time
+        && (
+          (sourceSupervisor && before.status == 'pending_source_approval'
+            && (
+              (after.status == 'pending_target_approval'
+                && changed.hasOnly(['status','sourceApprovedBy','sourceApprovedAt','updatedAt'])
+                && after.sourceApprovedBy == request.auth.uid
+                && after.sourceApprovedAt == request.time)
+              || (after.status == 'rejected_by_source'
+                && changed.hasOnly(['status','rejectionReason','updatedAt'])
+                && after.rejectionReason is string
+                && after.rejectionReason.size() > 0)
+            ))
+          || (targetSupervisor && before.status == 'pending_target_approval'
+            && (
+              (after.status == 'accepted'
+                && changed.hasOnly(['status','targetReviewedBy','targetReviewedAt','receivedFamilyId','updatedAt'])
+                && after.targetReviewedBy == request.auth.uid
+                && after.targetReviewedAt == request.time
+                && after.receivedFamilyId is string
+                && after.receivedFamilyId.size() > 0
+                && existsAfter(/databases/$(database)/documents/organizations/$(before.targetOrganizationId)/receivedFamilies/$(after.receivedFamilyId))
+                && getAfter(/databases/$(database)/documents/organizations/$(before.targetOrganizationId)/receivedFamilies/$(after.receivedFamilyId)).data.firstReferralId == after.receivedFamilyId)
+              || (after.status == 'rejected_by_target'
+                && changed.hasOnly(['status','targetReviewedBy','targetReviewedAt','rejectionReason','updatedAt'])
+                && after.targetReviewedBy == request.auth.uid
+                && after.targetReviewedAt == request.time
+                && after.rejectionReason is string
+                && after.rejectionReason.size() > 0)
+            ))
+          || (targetWorker && before.status == 'accepted'
+            && after.status == 'in_progress'
+            && before.get('assignedTo', null) == null
+            && changed.hasOnly(['status','assignedTo','assignedAt','startedAt','updatedAt'])
+            && after.assignedTo == request.auth.uid
+            && after.assignedAt == request.time
+            && after.startedAt == request.time)
+          || (targetWorker && before.status == 'in_progress'
+            && before.get('assignedTo', null) == request.auth.uid
+            && after.status == 'completed'
+            && changed.hasOnly(['status','completedBy','completedAt','result','resultNote','updatedAt'])
+            && after.completedBy == request.auth.uid
+            && after.completedAt == request.time
+            && after.result is string && after.result.size() > 0
+            && after.result.size() <= 2000
+            && (after.resultNote == null || after.resultNote is string))
+        );
+    }
+
     // ==========================================
     // 11. Referrals
     // ==========================================
@@ -1296,8 +1359,40 @@ match /assistanceAssignments/{assignmentId} {
 
       // Direct creation is allowed only with the matching initial event.
       // Other status changes remain backend-only until their rules are ready.
-      allow create: if validReferralCreation(referralId);
-      allow update, delete: if false;
+      allow create: if isSignedIn()
+  && isActiveMember(
+    request.resource.data.sourceOrganizationId
+  )
+  && request.resource.data.createdBy == request.auth.uid
+  && request.resource.data.sourceOrganizationId !=
+     request.resource.data.targetOrganizationId
+  && request.resource.data.sharingConfirmed == true
+  && exists(
+    familyPath(
+      request.resource.data.sourceOrganizationId,
+      request.resource.data.sourceFamilyId
+    )
+  )
+  && (
+    (
+      isSupervisor(request.resource.data.sourceOrganizationId)
+      && request.resource.data.status == 'pending_target_approval'
+    )
+    ||
+    (
+      isFieldWorker(request.resource.data.sourceOrganizationId)
+      && request.resource.data.status == 'pending_source_approval'
+      && request.resource.data.areaId == workerArea()
+      && get(
+        familyPath(
+          request.resource.data.sourceOrganizationId,
+          request.resource.data.sourceFamilyId
+        )
+      ).data.areaId == workerArea()
+    )
+  );
+      allow update: if validReferralStatusUpdate();
+      allow delete: if false;
 
       match /events/{eventId} {
 
