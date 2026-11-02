@@ -6,7 +6,6 @@ import 'cloud_functions_referral_repository.dart';
 
 class FirestoreReferralRepository
     extends CloudFunctionsReferralRepository {
-
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
 
@@ -41,6 +40,10 @@ class FirestoreReferralRepository
       throw Exception('يرجى إدخال سبب الإحالة');
     }
 
+    // ==========================================
+    // Current User
+    // ==========================================
+
     final userRef = _db.collection('users').doc(user.uid);
 
     final userSnapshot = await userRef.get();
@@ -73,11 +76,20 @@ class FirestoreReferralRepository
       throw Exception('لم يتم تحديد منطقة الموظف');
     }
 
+    // ==========================================
+    // Firestore References
+    // ==========================================
+
     final familyRef = _db
         .collection('organizations')
         .doc(sourceOrgId)
         .collection('families')
         .doc(familyId);
+
+    final areasRef = _db
+        .collection('organizations')
+        .doc(sourceOrgId)
+        .collection('areas');
 
     final sourceDirectoryRef = _db
         .collection('referralDirectory')
@@ -93,18 +105,26 @@ class FirestoreReferralRepository
         .collection('services')
         .doc(targetServiceId);
 
-    final referralRef =
-    _db.collection('referrals').doc();
+    final referralRef = _db
+        .collection('referrals')
+        .doc();
 
-    final eventRef =
-    referralRef.collection('events').doc('created');
+    final eventRef = referralRef
+        .collection('events')
+        .doc('created');
+
+    // ==========================================
+    // Read Diagnostics
+    // ==========================================
 
     Future<void> testRead(
         String name,
         DocumentReference<Map<String, dynamic>> ref,
         ) async {
       try {
-        await ref.get(const GetOptions(source: Source.server));
+        await ref.get(
+          const GetOptions(source: Source.server),
+        );
         print('✅ READ SUCCESS: $name');
       } catch (e) {
         print('❌ READ FAILED: $name');
@@ -117,8 +137,13 @@ class FirestoreReferralRepository
     await testRead('TARGET DIRECTORY', targetDirectoryRef);
     await testRead('TARGET SERVICE', serviceRef);
 
+    // ==========================================
+    // Create Referral Transaction
+    // ==========================================
+
     await _db.runTransaction((transaction) async {
-      // All reads must come before writes.
+      // All reads must happen before writes.
+
       final familyDoc =
       await transaction.get(familyRef);
 
@@ -131,9 +156,46 @@ class FirestoreReferralRepository
       final serviceDoc =
       await transaction.get(serviceRef);
 
+      // ========================================
+      // Validate Family
+      // ========================================
+
       if (!familyDoc.exists) {
         throw Exception('الأسرة غير موجودة');
       }
+
+      final family = familyDoc.data()!;
+
+      final familyAreaId =
+      family['areaId'] as String?;
+
+      if (familyAreaId == null ||
+          familyAreaId.trim().isEmpty) {
+        throw Exception('منطقة الأسرة غير محددة');
+      }
+
+      // ========================================
+      // Load Area Name From Source Organization
+      // ========================================
+
+      final areaDoc = await transaction.get(
+        areasRef.doc(familyAreaId),
+      );
+
+      if (!areaDoc.exists) {
+        throw Exception('منطقة الأسرة غير موجودة');
+      }
+
+      final areaName =
+      (areaDoc.data()?['name'] as String?)?.trim();
+
+      if (areaName == null || areaName.isEmpty) {
+        throw Exception('اسم منطقة الأسرة غير متوفر');
+      }
+
+      // ========================================
+      // Validate Organizations And Service
+      // ========================================
 
       if (!sourceDoc.exists || !targetDoc.exists) {
         throw Exception('بيانات المؤسسة غير متوفرة');
@@ -143,7 +205,6 @@ class FirestoreReferralRepository
         throw Exception('الخدمة المطلوبة غير موجودة');
       }
 
-      final family = familyDoc.data()!;
       final source = sourceDoc.data()!;
       final target = targetDoc.data()!;
       final service = serviceDoc.data()!;
@@ -158,13 +219,9 @@ class FirestoreReferralRepository
         throw Exception('الخدمة لا تستقبل الإحالات');
       }
 
-      final familyAreaId =
-      family['areaId'] as String?;
-
-      if (familyAreaId == null ||
-          familyAreaId.isEmpty) {
-        throw Exception('منطقة الأسرة غير محددة');
-      }
+      // ========================================
+      // Field Worker Area Permission
+      // ========================================
 
       if (role == 'field_worker' &&
           familyAreaId != userAreaId) {
@@ -172,6 +229,10 @@ class FirestoreReferralRepository
           'لا يمكنك إحالة أسرة خارج منطقتك',
         );
       }
+
+      // ========================================
+      // Required Text Helper
+      // ========================================
 
       String requiredText(
           Map<String, dynamic> data,
@@ -181,7 +242,9 @@ class FirestoreReferralRepository
 
         if (value is! String ||
             value.trim().isEmpty) {
-          throw Exception('البيانات المطلوبة ناقصة: $key');
+          throw Exception(
+            'البيانات المطلوبة ناقصة: $key',
+          );
         }
 
         return value.trim();
@@ -195,6 +258,10 @@ class FirestoreReferralRepository
 
       final serviceName =
       requiredText(service, 'name');
+
+      // ========================================
+      // Family Snapshot
+      // ========================================
 
       final familySnapshot = <String, dynamic>{
         'headName':
@@ -211,6 +278,10 @@ class FirestoreReferralRepository
         throw Exception('عدد أفراد الأسرة غير صالح');
       }
 
+      // ========================================
+      // Initial Referral Status
+      // ========================================
+
       final isSupervisor = role == 'supervisor';
 
       final status = isSupervisor
@@ -219,8 +290,11 @@ class FirestoreReferralRepository
 
       final now = FieldValue.serverTimestamp();
 
+      // ========================================
+      // Save Referral
+      // ========================================
+
       transaction.set(referralRef, {
-        // Temporary readable identifier.
         'number': referralRef.id,
 
         'sourceOrganizationId': sourceOrgId,
@@ -232,7 +306,12 @@ class FirestoreReferralRepository
 
         'sourceFamilyId': familyId,
         'familySnapshot': familySnapshot,
+
+        // Area ID for internal logic.
         'areaId': familyAreaId,
+
+        // Area name for UI display.
+        'areaName': areaName,
 
         'targetServiceId': targetServiceId,
         'serviceName': serviceName,
@@ -266,6 +345,10 @@ class FirestoreReferralRepository
         'sharingConfirmedAt': now,
       });
 
+      // ========================================
+      // Save Creation Event
+      // ========================================
+
       transaction.set(eventRef, {
         'type': 'created',
         'actorId': user.uid,
@@ -276,16 +359,34 @@ class FirestoreReferralRepository
     return referralRef.id;
   }
 
+  // ==========================================
+  // Current Actor
+  // ==========================================
+
   Future<Map<String, dynamic>> _actor() async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('يرجى تسجيل الدخول');
-    final doc = await _db.collection('users').doc(uid).get();
+
+    if (uid == null) {
+      throw Exception('يرجى تسجيل الدخول');
+    }
+
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .get();
+
     final data = doc.data();
+
     if (data == null || data['status'] != 'active') {
       throw Exception('الحساب غير فعال');
     }
+
     return {...data, 'uid': uid};
   }
+
+  // ==========================================
+  // Change Referral Status
+  // ==========================================
 
   Future<void> _changeStatus({
     required String referralId,
@@ -298,109 +399,258 @@ class FirestoreReferralRepository
     String? resultNote,
   }) async {
     final actor = await _actor();
+
     final role = actor['role'];
+
     if (supervisor && role != 'supervisor') {
       throw Exception('هذه العملية للمشرف فقط');
     }
+
     if (!supervisor && role != 'field_worker') {
       throw Exception('هذه العملية للموظف فقط');
     }
+
     final uid = actor['uid'] as String;
     final orgId = actor['organizationId'] as String;
-    final ref = _db.collection('referrals').doc(referralId);
+
+    final ref = _db
+        .collection('referrals')
+        .doc(referralId);
+
     await _db.runTransaction((tx) async {
       final doc = await tx.get(ref);
-      if (!doc.exists) throw Exception('الإحالة غير موجودة');
+
+      if (!doc.exists) {
+        throw Exception('الإحالة غير موجودة');
+      }
+
       final data = doc.data()!;
-      final orgField = incoming ? 'targetOrganizationId' : 'sourceOrganizationId';
-      if (data[orgField] != orgId) throw Exception('الإحالة ليست تابعة لمؤسستك');
+
+      final orgField = incoming
+          ? 'targetOrganizationId'
+          : 'sourceOrganizationId';
+
+      if (data[orgField] != orgId) {
+        throw Exception(
+          'الإحالة ليست تابعة لمؤسستك',
+        );
+      }
+
       if (data['status'] != expected) {
-        throw Exception('تم تغيير حالة الإحالة، حدّث الصفحة');
+        throw Exception(
+          'تم تغيير حالة الإحالة، حدّث الصفحة',
+        );
       }
-      if (expected == 'in_progress' && data['assignedTo'] != uid) {
-        throw Exception('هذه الخدمة يستكملها الموظف الذي بدأها فقط');
+
+      if (expected == 'in_progress' &&
+          data['assignedTo'] != uid) {
+        throw Exception(
+          'هذه الخدمة يستكملها الموظف الذي بدأها فقط',
+        );
       }
+
       final patch = <String, dynamic>{
         'status': next,
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      // ========================================
+      // Source Organization Decision
+      // ========================================
+
       if (expected == 'pending_source_approval') {
         if (next == 'pending_target_approval') {
           patch['sourceApprovedBy'] = uid;
-          patch['sourceApprovedAt'] = FieldValue.serverTimestamp();
+          patch['sourceApprovedAt'] =
+              FieldValue.serverTimestamp();
         } else {
           patch['rejectionReason'] = reason;
         }
-      } else if (expected == 'pending_target_approval') {
+      }
+
+      // ========================================
+      // Target Organization Decision
+      // ========================================
+
+      else if (expected == 'pending_target_approval') {
         patch['targetReviewedBy'] = uid;
-        patch['targetReviewedAt'] = FieldValue.serverTimestamp();
-        if (next == 'rejected_by_target') patch['rejectionReason'] = reason;
-        if (next == 'accepted') patch['receivedFamilyId'] = referralId;
-      } else if (expected == 'accepted') {
+        patch['targetReviewedAt'] =
+            FieldValue.serverTimestamp();
+
+        if (next == 'rejected_by_target') {
+          patch['rejectionReason'] = reason;
+        }
+
+        if (next == 'accepted') {
+          patch['receivedFamilyId'] = referralId;
+        }
+      }
+
+      // ========================================
+      // Start Service
+      // ========================================
+
+      else if (expected == 'accepted') {
         patch['assignedTo'] = uid;
-        patch['assignedAt'] = FieldValue.serverTimestamp();
-        patch['startedAt'] = FieldValue.serverTimestamp();
-      } else if (expected == 'in_progress') {
+        patch['assignedAt'] =
+            FieldValue.serverTimestamp();
+        patch['startedAt'] =
+            FieldValue.serverTimestamp();
+      }
+
+      // ========================================
+      // Complete Service
+      // ========================================
+
+      else if (expected == 'in_progress') {
         patch['completedBy'] = uid;
-        patch['completedAt'] = FieldValue.serverTimestamp();
+        patch['completedAt'] =
+            FieldValue.serverTimestamp();
         patch['result'] = result;
         patch['resultNote'] = resultNote;
       }
+
+      // ========================================
+      // Save Received Family On Acceptance
+      // ========================================
+
       if (next == 'accepted') {
-        final receivedRef = _db.collection('organizations').doc(orgId)
-            .collection('receivedFamilies').doc(referralId);
-        final family = Map<String, dynamic>.from(data['familySnapshot'] as Map);
-        // All reads happen before writes.
+        final receivedRef = _db
+            .collection('organizations')
+            .doc(orgId)
+            .collection('receivedFamilies')
+            .doc(referralId);
+
+        final family = Map<String, dynamic>.from(
+          data['familySnapshot'] as Map,
+        );
+
+        // Read before performing writes.
         final oldFamily = await tx.get(receivedRef);
+
         if (!oldFamily.exists) {
           tx.set(receivedRef, {
-            'sourceOrganizationId': data['sourceOrganizationId'],
-            'sourceFamilyId': data['sourceFamilyId'],
+            'sourceOrganizationId':
+            data['sourceOrganizationId'],
+            'sourceFamilyId':
+            data['sourceFamilyId'],
             'targetOrganizationId': orgId,
+
             'headName': family['headName'],
             'membersCount': family['membersCount'],
             'phoneNumber': family['phoneNumber'],
             'address': family['address'],
+
             'areaId': data['areaId'],
             'firstReferralId': referralId,
-            'receivedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
+
+            'receivedAt':
+            FieldValue.serverTimestamp(),
+            'updatedAt':
+            FieldValue.serverTimestamp(),
           });
         }
       }
+
       tx.update(ref, patch);
     });
   }
 
-  @override
-  Future<void> approveOutgoing(String referralId) => _changeStatus(
-    referralId: referralId, expected: 'pending_source_approval',
-    next: 'pending_target_approval', supervisor: true, incoming: false);
+  // ==========================================
+  // Outgoing Approval
+  // ==========================================
 
   @override
-  Future<void> rejectOutgoing({required String referralId, required String reason}) => _changeStatus(
-    referralId: referralId, expected: 'pending_source_approval',
-    next: 'rejected_by_source', supervisor: true, incoming: false, reason: reason);
+  Future<void> approveOutgoing(String referralId) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'pending_source_approval',
+        next: 'pending_target_approval',
+        supervisor: true,
+        incoming: false,
+      );
+
+  // ==========================================
+  // Outgoing Rejection
+  // ==========================================
 
   @override
-  Future<void> acceptIncoming(String referralId) => _changeStatus(
-    referralId: referralId, expected: 'pending_target_approval',
-    next: 'accepted', supervisor: true, incoming: true);
+  Future<void> rejectOutgoing({
+    required String referralId,
+    required String reason,
+  }) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'pending_source_approval',
+        next: 'rejected_by_source',
+        supervisor: true,
+        incoming: false,
+        reason: reason,
+      );
+
+  // ==========================================
+  // Incoming Acceptance
+  // ==========================================
 
   @override
-  Future<void> rejectIncoming({required String referralId, required String reason}) => _changeStatus(
-    referralId: referralId, expected: 'pending_target_approval',
-    next: 'rejected_by_target', supervisor: true, incoming: true, reason: reason);
+  Future<void> acceptIncoming(String referralId) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'pending_target_approval',
+        next: 'accepted',
+        supervisor: true,
+        incoming: true,
+      );
+
+  // ==========================================
+  // Incoming Rejection
+  // ==========================================
 
   @override
-  Future<void> startService(String referralId) => _changeStatus(
-    referralId: referralId, expected: 'accepted',
-    next: 'in_progress', supervisor: false, incoming: true);
+  Future<void> rejectIncoming({
+    required String referralId,
+    required String reason,
+  }) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'pending_target_approval',
+        next: 'rejected_by_target',
+        supervisor: true,
+        incoming: true,
+        reason: reason,
+      );
+
+  // ==========================================
+  // Start Referral Service
+  // ==========================================
 
   @override
-  Future<void> completeService({required String referralId, required String result, String? resultNote}) => _changeStatus(
-    referralId: referralId, expected: 'in_progress',
-    next: 'completed', supervisor: false, incoming: true,
-    result: result, resultNote: resultNote);
+  Future<void> startService(String referralId) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'accepted',
+        next: 'in_progress',
+        supervisor: false,
+        incoming: true,
+      );
 
+  // ==========================================
+  // Complete Referral Service
+  // ==========================================
+
+  @override
+  Future<void> completeService({
+    required String referralId,
+    required String result,
+    String? resultNote,
+  }) =>
+      _changeStatus(
+        referralId: referralId,
+        expected: 'in_progress',
+        next: 'completed',
+        supervisor: false,
+        incoming: true,
+        result: result,
+        resultNote: resultNote,
+      );
 }

@@ -46,7 +46,7 @@ class ReferralsScreen extends StatelessWidget {
                 () => ReferralTabs(
               labels: [
                 'الصادرة ${toArabicDigits(controller.outgoing.length)}',
-                controller.isSupervisor ? 'الواردة · للمشرف' : 'الواردة · المقبولة',
+                'الواردة ${toArabicDigits(controller.incoming.length)}',
               ],
               selectedIndex: controller.tabIndex.value,
               onChanged: controller.selectTab,
