@@ -77,7 +77,7 @@ class IncomingReferralCard extends StatelessWidget {
 
           Text(
             '${membersLabel(referral.membersCount)} · '
-                'المنطقة: ${referral.areaId} · '
+                'المنطقة: ${referral.area} · '
                 'بيانات الإحالة فقط',
             style: const TextStyle(
               fontSize: 12,

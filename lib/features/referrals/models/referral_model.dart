@@ -86,6 +86,7 @@ class ReferralModel {
   final String contactPhone;
   final String address;
   final String areaId;
+  final String? areaName;
 
   // Service
   final String targetServiceId;
@@ -164,13 +165,22 @@ class ReferralModel {
     this.resultNote,
     required this.sharingConfirmed,
     this.sharingConfirmedAt,
+    this.areaName,
   });
 
   // Compatibility with existing UI widgets
   String get fromOrg => sourceOrganizationName;
   String get toOrg => targetOrganizationName;
   String get service => serviceName;
-  String get area => areaId;
+  String get area {
+    final name = areaName?.trim();
+
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
+    return 'غير محددة';
+  }
 
   bool get isWaitingSourceApproval =>
       status == ReferralStatus.pendingSourceApproval;
@@ -262,6 +272,7 @@ class ReferralModel {
       contactPhone: contactPhone,
       address: address,
       areaId: areaId,
+      areaName: areaName,
       targetServiceId: targetServiceId,
       serviceName: serviceName,
       reason: reason,

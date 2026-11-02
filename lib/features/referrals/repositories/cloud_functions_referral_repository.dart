@@ -293,6 +293,7 @@ class CloudFunctionsReferralRepository  {
       contactPhone: family['phoneNumber'] as String,
       address: family['address'] as String,
       areaId: data['areaId'] as String,
+      areaName: data['areaName'] as String?,
       targetServiceId: data['targetServiceId'] as String,
       serviceName: data['serviceName'] as String,
       reason: data['reason'] as String,

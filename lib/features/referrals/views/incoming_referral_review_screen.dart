@@ -65,6 +65,7 @@ class _IncomingReferralReviewScreenState
   @override
   Widget build(BuildContext context) {
     return ReferralFlowScaffold(
+      showBackButton: true,
       title: widget.isSupervisor ? 'مراجعة إحالة واردة' : 'تنفيذ إحالة واردة',
       breadcrumb: 'متابعة الإحالة',
       subtitleLine: 'المؤسسة المستقبلة',
@@ -123,7 +124,7 @@ class _IncomingReferralReviewScreenState
             ),
             ReviewRow(
               label: 'المنطقة',
-              value: referral.areaId,
+              value: referral.area,
             ),
             ReviewRow(
               label: 'الخدمة المطلوبة',
