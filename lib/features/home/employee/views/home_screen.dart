@@ -10,6 +10,7 @@ import 'package:sijil/features/home/widgets/home_stats_grid.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 
 import '../../../auth/controllers/user_session_controller.dart';
+import '../../../notifications/views/notifications_screen.dart';
 
 /// Main screen shown after a successful login.
 ///
@@ -31,6 +32,9 @@ class HomeScreen extends StatelessWidget {
           title: 'صباح الخير، ${session.fullName.value}',
           subtitle: '${session.organizationName} · ${session.roleName}',
           action: Icons.notifications_outlined,
+          onActionPressed: () {
+            Get.to(() => NotificationsScreen());
+          },
         ),
         body: SafeArea(
           child: SingleChildScrollView(

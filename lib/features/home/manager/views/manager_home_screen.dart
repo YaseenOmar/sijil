@@ -9,8 +9,8 @@ import 'package:sijil/core/widgets/app_status_card.dart';
 import 'package:sijil/core/widgets/custom_app_bar.dart';
 import 'package:sijil/core/widgets/custom_bottom_nav_bar.dart';
 import 'package:sijil/features/home/widgets/home_stat_card.dart';
-import '../../../assistance/views/assign_assistance_screen.dart';
 import '../../../auth/controllers/user_session_controller.dart';
+import '../../../notifications/views/notifications_screen.dart';
 import '../../../service_catalog/views/add_service_screen.dart';
 import '../../../staff/views/team_and_services_screen.dart';
 import '../../../staff/views/add_staff_screen.dart';
@@ -36,6 +36,9 @@ class ManagerHomeScreen extends StatelessWidget {
           subtitle: '${session.fullName.value} . ${session.organizationName
               .value}',
           action: Icons.notifications_outlined,
+          onActionPressed: () {
+            Get.to(() => NotificationsScreen());
+          },
         ),
         body: SafeArea(
           child: SingleChildScrollView(
