@@ -22,7 +22,7 @@ class NotificationsScreen extends StatelessWidget {
         backgroundColor: AppColors.neutralBackground,
         appBar: CustomAppBar(
           title: 'الإشعارات',
-          subtitle: 'نورا إبراهيم · مشرفة جمعية الأمان',
+          subtitle: 'نسمة المجايدة · مشرفة جمعية النور',
           leading: Icons.arrow_back,
           onLeadingPressed: () => Get.back(),
         ),
